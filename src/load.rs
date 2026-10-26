@@ -507,7 +507,7 @@ impl<'a> Context<'a> {
                         self.warnf(WarningType::UnsupportedVersion, format!("Unsupported FBX version ({v})"));
                     }
                     crate::update::update_scene_metadata(&mut self.scene.metadata);
-                    crate::paths::init_file_paths(&mut self.scene.metadata, &self.opts);
+                    crate::paths::init_file_paths(&mut self.p, &mut self.scene.metadata, &self.opts)?;
                 }
                 #[cfg(not(feature = "format-fbx"))]
                 return Err(Error::new("Feature disabled").set_err_info("format-fbx"));

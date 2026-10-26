@@ -1241,11 +1241,9 @@ fn filename_option_unicode() {
             }
             ufbxt_assert!(scene.is_ok());
             let scene = scene.unwrap();
-            // ToDo: expected: check_scene(&scene), the file name holding no NUL
-            ufbxt_assert!(scene.metadata.filename.contains('\0'));
+            check_scene(&scene);
 
-            // ToDo: expected: "path\u{fffd}/file.fbx"
-            ufbxt_assert!(scene.metadata.filename == "path\0/file.fbx");
+            ufbxt_assert!(scene.metadata.filename == "path\u{fffd}/file.fbx");
             ufbxt_assert!(scene.metadata.raw_filename.len() == 14);
             ufbxt_assert!(scene.metadata.raw_filename[..9] == b"path\0/file.fbx"[..9]);
 
@@ -1255,8 +1253,7 @@ fn filename_option_unicode() {
             ufbxt_assert!(texture.is_some());
             let texture = texture.unwrap();
 
-            // ToDo: expected: "path\u{fffd}/textures/checkerboard_diffuse.png"
-            ufbxt_assert!(texture.filename == "path\0/textures/checkerboard_diffuse.png");
+            ufbxt_assert!(texture.filename == "path\u{fffd}/textures/checkerboard_diffuse.png");
             ufbxt_assert!(texture.raw_filename.len() == 39);
             ufbxt_assert!(texture.raw_filename == b"path\0/textures/checkerboard_diffuse.png");
         }
@@ -1272,8 +1269,7 @@ fn filename_option_unicode() {
             let scene = scene.unwrap();
             check_scene(&scene);
 
-            // ToDo: expected: "path\u{fffd}/file.fbx"
-            ufbxt_assert!(scene.metadata.filename == "path?/file.fbx");
+            ufbxt_assert!(scene.metadata.filename == "path\u{fffd}/file.fbx");
             ufbxt_assert!(scene.metadata.raw_filename.len() == 14);
             ufbxt_assert!(scene.metadata.raw_filename == b"path\0/file.fbx");
 
@@ -1283,8 +1279,7 @@ fn filename_option_unicode() {
             ufbxt_assert!(texture.is_some());
             let texture = texture.unwrap();
 
-            // ToDo: expected: "path\u{fffd}\\textures\\checkerboard_diffuse.png"
-            ufbxt_assert!(texture.filename == "path?\\textures\\checkerboard_diffuse.png");
+            ufbxt_assert!(texture.filename == "path\u{fffd}\\textures\\checkerboard_diffuse.png");
             ufbxt_assert!(texture.raw_filename.len() == 39);
             ufbxt_assert!(texture.raw_filename == b"path\0\\textures\\checkerboard_diffuse.png");
         }

@@ -1,3 +1,5 @@
+use crate::error::Res;
+use crate::parse::Parser;
 use crate::types::*;
 
 pub(crate) const DEFAULT_PATH_SEPARATOR: u8 = if cfg!(windows) { b'\\' } else { b'/' };
@@ -15,11 +17,12 @@ pub(crate) fn trim_delimiters(path_separator: u8, data: &[u8]) -> usize {
     length
 }
 
-pub(crate) fn init_file_paths(metadata: &mut Metadata, opts: &LoadOpts) {
+/// Cleaned as ufbx's string pool cleans text, by `unicode_error_handling`
+pub(crate) fn init_file_paths(p: &mut Parser, metadata: &mut Metadata, opts: &LoadOpts) -> Res<()> {
     if !opts.filename.is_empty() {
-        metadata.filename = opts.filename.clone();
+        metadata.filename = p.utf8(opts.filename.as_bytes())?;
     } else if !opts.raw_filename.is_empty() {
-        metadata.filename = crate::error::clean_string_utf8(&opts.raw_filename);
+        metadata.filename = p.utf8(&opts.raw_filename)?;
     }
     if !opts.raw_filename.is_empty() {
         metadata.raw_filename = opts.raw_filename.clone();
@@ -30,6 +33,7 @@ pub(crate) fn init_file_paths(metadata: &mut Metadata, opts: &LoadOpts) {
     metadata.relative_root = String::from_utf8_lossy(&metadata.filename.as_bytes()[..n]).into_owned();
     let n = trim_delimiters(opts.path_separator, &metadata.raw_filename);
     metadata.raw_relative_root = metadata.raw_filename[..n].to_vec();
+    Ok(())
 }
 
 pub(crate) fn is_absolute_path(path: &[u8]) -> bool {
@@ -115,18 +119,14 @@ mod tests {
     #[test]
     fn a_file_name_is_cleaned_as_ufbx_cleans_its_strings() {
         let named = load_memory(MINIMAL, &LoadOpts { filename: "path\0/file.fbx".into(), ..Default::default() }).unwrap();
-        // ToDo: expected: "path\u{fffd}/file.fbx", "path\u{fffd}"
-        assert_eq!((named.metadata.filename.as_str(), named.metadata.relative_root.as_str()), ("path\0/file.fbx", "path\0"));
-        // ToDo: expected: true
-        assert!(!named.metadata.has_warning[WarningType::BadUnicode as usize]);
+        assert_eq!((named.metadata.filename.as_str(), named.metadata.relative_root.as_str()), ("path\u{fffd}/file.fbx", "path\u{fffd}"));
+        assert!(named.metadata.has_warning[WarningType::BadUnicode as usize]);
         assert_eq!(named.metadata.raw_filename, b"path\0/file.fbx");
 
         let raw = load_memory(MINIMAL, &LoadOpts { raw_filename: b"path\0/file.fbx".to_vec(), ..Default::default() }).unwrap();
-        // ToDo: expected: "path\u{fffd}/file.fbx"
-        assert_eq!(raw.metadata.filename, "path?/file.fbx");
+        assert_eq!(raw.metadata.filename, "path\u{fffd}/file.fbx");
 
         let strict = LoadOpts { filename: "path\0/file.fbx".into(), unicode_error_handling: UnicodeErrorHandling::AbortLoading, ..Default::default() };
-        // ToDo: expected: the load refused, "Invalid UTF-8"
-        assert!(load_memory(MINIMAL, &strict).is_ok());
+        assert_eq!(load_memory(MINIMAL, &strict).unwrap_err().description, "Invalid UTF-8");
     }
 }

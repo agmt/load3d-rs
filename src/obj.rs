@@ -1106,14 +1106,14 @@ pub(crate) fn obj_load(ctx: &mut Context) -> Res<()> {
     let mut obj = ObjContext::default();
     obj.obj_init(ctx);
     obj.obj_parse_file(ctx)?;
-    init_file_paths(&mut ctx.scene.metadata, &ctx.opts);
+    init_file_paths(&mut ctx.p, &mut ctx.scene.metadata, &ctx.opts)?;
     obj.obj_load_mtl(ctx)
 }
 
 pub(crate) fn mtl_load(ctx: &mut Context) -> Res<()> {
     let mut obj = ObjContext::default();
     obj.obj_init(ctx);
-    init_file_paths(&mut ctx.scene.metadata, &ctx.opts);
+    init_file_paths(&mut ctx.p, &mut ctx.scene.metadata, &ctx.opts)?;
     obj.obj_parse_mtl(ctx, None)
 }
 
