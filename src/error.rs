@@ -42,8 +42,10 @@ impl Error {
         Error { kind: kind_of(&description), description, info: String::new() }
     }
 
+    /// At most 255 bytes, as `ufbxi_set_err_info` copies; a character cut there becomes '?'
     pub(crate) fn set_err_info(mut self, info: impl Into<String>) -> Error {
-        self.info = clean_string_utf8(info.into().as_bytes());
+        let info = info.into();
+        self.info = clean_string_utf8(&info.as_bytes()[..info.len().min(INFO_LENGTH - 1)]);
         self
     }
 
@@ -101,6 +103,8 @@ fn kind_of(description: &str) -> ErrorType {
 }
 
 pub(crate) type Res<T> = Result<T, Error>;
+
+const INFO_LENGTH: usize = 256;
 
 /// With `ufbxi_fail_imp_no_stack` and `ufbxi_fail_imp_err_no_stack` in ufbx.c: a failed check, which ufbx reports without a description of its own
 pub(crate) fn fail<T>() -> Res<T> {
@@ -270,10 +274,8 @@ mod tests {
     #[test]
     fn an_errors_info_is_cut_where_ufbx_cuts_it() {
         let long = Error::new("File not found").set_err_info("a".repeat(300));
-        // ToDo: expected: 255
-        assert_eq!(long.info.len(), 300);
+        assert_eq!(long.info.len(), 255);
         let cut = Error::new("File not found").set_err_info(format!("{}é", "a".repeat(254)));
-        // ToDo: expected: format!("{}?", "a".repeat(254))
-        assert_eq!(cut.info, format!("{}é", "a".repeat(254)));
+        assert_eq!(cut.info, format!("{}?", "a".repeat(254)));
     }
 }

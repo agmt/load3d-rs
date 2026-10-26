@@ -579,8 +579,7 @@ fn huge_filename_not_found() {
 
     ufbxt_assert!(error.kind == ErrorType::FileNotFound);
     ufbxt_assert!(!error.info.contains('\0'));
-    // ToDo: expected: ERROR_INFO_LENGTH - 1
-    ufbxt_assert!(error.info.len() == filename.len());
+    ufbxt_assert!(error.info.len() == ERROR_INFO_LENGTH - 1);
 }
 
 fn missing_obj_mtl_path_opts() -> LoadOpts {
