@@ -1,0 +1,16 @@
+[package]
+name = "fbx-oracle"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "load3d compared with ufbx, the C library it ports, on ufbx's own test corpus"
+
+[dependencies]
+load3d = { path = "..", default-features = false, features = ["format-fbx", "format-obj", "geometry-cache", "skinning-evaluation"] }
+ufbx = "0.11"
+
+[profile.dev]
+opt-level = 1
+
+# its own workspace: the oracle builds the C library, and nothing else in the repository should
+[workspace]

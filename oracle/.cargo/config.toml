@@ -1,0 +1,4 @@
+# ufbx.c is compiled by the cc crate, which reads CFLAGS: without this GCC fuses multiply-adds on x86-64-v3 hosts and
+# the C results differ from the port in the last bit
+[env]
+CFLAGS = "-ffp-contract=off"

@@ -1,0 +1,20 @@
+[package]
+name = "load3d"
+version = "0.1.4"
+edition = "2024"
+license = "MIT"
+description = "3D files read in pure Rust, each format a feature: FBX (binary and text, 3.0 to 7.7), OBJ and MTL as ufbx 0.23.1 reads them, ported whole, with animation, skinning, NURBS, triangulation and subdivision"
+repository = "https://github.com/agmt/load3d-rs"
+readme = "README.md"
+keywords = ["fbx", "obj", "3d", "mesh"]
+categories = ["rendering::data-formats", "parser-implementations", "graphics", "game-development"]
+include = ["/src", "/tests", "/examples/*.rs", "/README.md", "/LICENSE"]
+
+[features]
+default = ["format-fbx", "format-obj", "geometry-cache", "skinning-evaluation"]
+# Off, a load that would need one fails "Feature disabled", its info the feature's name
+format-obj = []
+# Off, a file taken for FBX fails as an .obj does without format-obj
+format-fbx = []
+geometry-cache = []
+skinning-evaluation = []
