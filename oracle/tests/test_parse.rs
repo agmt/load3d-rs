@@ -108,6 +108,8 @@ fn error_format_hint() {
 
 #[test]
 fn error_format_no_error() {
+    let none = Error { kind: ErrorType::None, description: String::new(), info: String::new() };
+    ufbxt_assert!(none.to_string().is_empty());
 }
 
 file_test!(maya_node_attribute_zoo, |scene, err, load_error| {

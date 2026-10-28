@@ -94,10 +94,31 @@ fn obj_open_memory_ref() {
 
 #[test]
 fn retain_free_null() {
+    // Each kind is a value of its own, and a copy kept stays whole when what it was copied from is dropped
+    let cache = load_geometry_cache(&data_path("caches/sine_mxsf_regular/cache.xml"), &GeometryCacheOpts::default()).unwrap();
+    for path in FileIterator::new("maya_cube") {
+        let scene = load_file(&path, &LoadOpts::default()).unwrap();
+        let fresh = load_file(&path, &LoadOpts::default()).unwrap();
+        let baked = bake_anim(&scene, &scene.anim, &BakeOpts::default()).unwrap();
+        let kept = (scene.clone(), scene.meshes[0].clone(), Arc::clone(&scene.anim), baked.clone(), cache.clone());
+        drop((scene, baked));
+        ufbxt_assert!(kept.0 == fresh && kept.1 == fresh.meshes[0] && *kept.2 == *fresh.anim && kept.4 == cache);
+        ufbxt_assert!(kept.3 == bake_anim(&fresh, &fresh.anim, &BakeOpts::default()).unwrap());
+        check_scene(&kept.0);
+    }
 }
 
 #[test]
 fn thread_memory() {
+    // Loads on several threads at once each take memory of their own and give the scene a load alone gives
+    for path in FileIterator::new("maya_cube") {
+        let alone = load_file(&path, &LoadOpts::default()).unwrap();
+        let scenes: Vec<Scene> = std::thread::scope(|s| {
+            let loads: Vec<_> = (0..4).map(|_| s.spawn(|| load_file(&path, &LoadOpts::default()).unwrap())).collect();
+            loads.into_iter().map(|l| l.join().unwrap()).collect()
+        });
+        ufbxt_assert!(scenes.iter().all(|s| *s == alone));
+    }
 }
 
 #[test]
@@ -248,18 +269,61 @@ fn multiuse_realloc() {
 
 #[test]
 fn null_realloc() {
+    // The limit of temporary memory fails the load with an error, not an abort; it bounds a binary file's arrays only, so a text
+    // file loads under any
+    for path in FileIterator::new("maya_cube").filter(|p| p.contains("_binary")) {
+        let opts = LoadOpts { temp_allocator: AllocatorOpts { memory_limit: 1, ..Default::default() }, ..Default::default() };
+        let err = load_file(&path, &opts).err();
+        ufbxt_assert!(err.is_some_and(|e| e.kind == ErrorType::MemoryLimit));
+    }
 }
 
 #[test]
 fn null_realloc_only() {
+    // The limit alone fails it, at the first byte past what a binary file's arrays need
+    for path in FileIterator::new("maya_cube").filter(|p| p.contains("_binary")) {
+        let with = |memory_limit| LoadOpts { temp_allocator: AllocatorOpts { memory_limit, ..Default::default() }, ..Default::default() };
+        // the least limit that loads, between one that fails and one that loads (0 is no limit)
+        let (mut fails, mut loads) = (1, 1 << 30);
+        ufbxt_assert!(load_file(&path, &with(fails)).is_err() && load_file(&path, &with(loads)).is_ok());
+        while loads - fails > 1 {
+            let mid = fails + (loads - fails) / 2;
+            if load_file(&path, &with(mid)).is_ok() { loads = mid } else { fails = mid }
+        }
+        ufbxt_assert!(load_file(&path, &with(fails)).is_err_and(|e| e.kind == ErrorType::MemoryLimit));
+        ufbxt_assert!(load_file(&path, &with(loads)).unwrap() == load_file(&path, &LoadOpts::default()).unwrap());
+    }
 }
 
 #[test]
 fn element_type_sizes() {
+    for (i, &t) in ALL_ELEMENT_TYPES.iter().enumerate() {
+        ufbxt_assert!(t as usize == i && ElementType::from_index(i) == t);
+    }
+    for path in FileIterator::new("maya_node_attribute_zoo") {
+        let scene = load_file(&path, &LoadOpts::default()).unwrap();
+        let mut seen = 0;
+        for &t in &ALL_ELEMENT_TYPES {
+            let ids = scene.elements_by_type(t);
+            ufbxt_assert!(ids.len() == scene.count_of(t));
+            for (typed_id, &id) in ids.iter().enumerate() {
+                let e = scene.element(id);
+                ufbxt_assert!(e.element_type == t && e.typed_id as usize == typed_id && e.element_id == id);
+                ufbxt_assert!(scene.elements[id as usize] == ElementRef { element_type: t, index: typed_id });
+            }
+            seen += ids.len();
+        }
+        ufbxt_assert!(seen == scene.elements.len());
+    }
 }
 
 #[test]
 fn evaluate_anim_null() {
+    let (scene, value) = (Scene::default(), AnimValue::default());
+    for time in [0.0, 1.0, -1.0] {
+        ufbxt_assert!(evaluate_anim_value_real(&scene, &value, time) == 0.0);
+        ufbxt_assert!(evaluate_anim_value_vec3(&scene, &value, time) == Vec3::ZERO);
+    }
 }
 
 #[test]
@@ -600,6 +664,31 @@ file_test!(
 
 #[test]
 fn load_scene_bad_opts() {
+    // Options are never uninitialized here, so the nearest are options at the ends of their ranges: each loads the file or
+    // refuses it, never panics
+    let bad = |f: &dyn Fn(&mut LoadOpts)| {
+        let mut opts = LoadOpts::default();
+        f(&mut opts);
+        opts
+    };
+    let all = [
+        bad(&|o| o.target_unit_meters = Real::NAN),
+        bad(&|o| o.target_unit_meters = 0.0),
+        bad(&|o| o.target_unit_meters = -1.0),
+        bad(&|o| o.target_unit_meters = Real::INFINITY),
+        bad(&|o| (o.target_unit_meters, o.space_conversion) = (Real::NAN, SpaceConversion::ModifyGeometry)),
+        bad(&|o| (o.target_unit_meters, o.space_conversion) = (0.0, SpaceConversion::AdjustTransforms)),
+        bad(&|o| o.obj_unit_meters = Real::NAN),
+        bad(&|o| o.node_depth_limit = 1),
+        bad(&|o| o.read_buffer_size = 1),
+        bad(&|o| o.temp_allocator = AllocatorOpts { memory_limit: 1, allocation_limit: 1, huge_threshold: 1, max_chunk_size: 1 }),
+        bad(&|o| o.result_allocator = AllocatorOpts { memory_limit: 1, allocation_limit: 1, huge_threshold: 1, max_chunk_size: 1 }),
+    ];
+    for path in FileIterator::new("maya_cube") {
+        for opts in &all {
+            ufbxt_assert!(catch_panic(|| load_file(&path, opts).map(drop)).is_ok());
+        }
+    }
 }
 
 #[test]
@@ -650,6 +739,14 @@ fn tessellate_surface_bad_opts() {
 
 #[test]
 fn load_cache_bad_opts() {
+    // Options at the ends of their ranges: each loads or refuses, never panics
+    let path = data_path("caches/sine_mxsf_regular/cache.xml");
+    for frames_per_second in [Real::NAN, 0.0, -1.0, Real::INFINITY] {
+        for scale_factor in [Real::NAN, 0.0, Real::INFINITY] {
+            let opts = GeometryCacheOpts { frames_per_second, scale_factor, use_scale_factor: true, ..Default::default() };
+            ufbxt_assert!(catch_panic(|| load_geometry_cache(&path, &opts).map(drop)).is_ok());
+        }
+    }
 }
 
 #[test]
@@ -682,6 +779,11 @@ fn sample_cache_bad_opts() {
 
 #[test]
 fn retain_free_garbage() {
+    // The bytes are taken for a file: refused, never a panic
+    for len in [1, 16, 200, 1000, 16 * 1024] {
+        let garbage = vec![0xff; len];
+        ufbxt_assert!(catch_panic(|| load_memory(&garbage, &LoadOpts::default()).is_err()) == Ok(true));
+    }
 }
 
 file_test!(dom_helper_null, file = "maya_cube", opts = retain_dom_opts(), flags = NO_FUZZ, |scene, err, load_error| {
@@ -739,6 +841,11 @@ fn allow_invalid_unicode_opts() -> LoadOpts {
 
 #[test]
 fn bad_path() {
+    // `load_file` takes a `&str`, which cannot hold ufbx's 0xff bytes, so the paths end in as many 'ÿ', U+00FF, two bytes each
+    for len in [1, 16, 200, 1000] {
+        let path = format!("{}{}", data_root_str(), "\u{ff}".repeat(len));
+        ufbxt_assert!(catch_panic(|| load_file(&path, &LoadOpts::default()).is_err()) == Ok(true));
+    }
 }
 
 file_test_allow_error!(casegen_bad_path, opts = allow_invalid_unicode_opts(), flags = ALLOW_INVALID_UNICODE, |scene, err, load_error| {
