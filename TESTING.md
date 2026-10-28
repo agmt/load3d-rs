@@ -30,3 +30,8 @@ This repository holds no 3D file. The checks above take ufbx's from its public r
 ignored until asked for, with the long test of decimals:
 
     UFBX_DATA=../ufbx/data cargo test --release --lib -- --ignored
+
+`examples/viewer/test.sh` builds the viewer for the browser and opens it in a headless Chromium in Docker on a file of
+each format, which the test writes itself; the page it builds opens from any static server:
+
+    examples/viewer/test.sh && python3 -m http.server -d examples/viewer/target/site

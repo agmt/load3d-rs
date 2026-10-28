@@ -20,4 +20,5 @@ function under ufbx's names, with no C and no `unsafe`:
 ## Using it
 
 - [`examples/load.rs`](examples/load.rs) loads a file and lists its meshes, placed in the world:
-  `cargo run --example load -- model.fbx`.
+  `cargo run --example load -- model.fbx`;
+- [`examples/viewer`](examples/viewer) draws a file in the browser.

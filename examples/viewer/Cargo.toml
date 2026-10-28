@@ -1,0 +1,22 @@
+[package]
+name = "load3d-viewer"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "A page that draws a 3D file read by load3d, the crate built for the browser"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+load3d = { path = "../.." }
+
+# for the browser, so for size, as a page that reads files builds it
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[workspace]
