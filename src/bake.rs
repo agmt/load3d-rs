@@ -1061,8 +1061,10 @@ pub fn evaluate_baked_quat(keyframes: &[BakedQuat], time: f64) -> Quat {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "format-fbx")]
     use crate::load::load_memory;
 
+    #[cfg(feature = "format-fbx")]
     const SCENE: &str = r#"; FBX 7.4.0 project file
 FBXHeaderExtension:  {
 	FBXHeaderVersion: 1003
@@ -1175,18 +1177,22 @@ Connections:  {
 }
 "#;
 
+    #[cfg(feature = "format-fbx")]
     fn scene() -> Scene {
         load_memory(SCENE.as_bytes(), &LoadOpts::default()).unwrap()
     }
 
+    #[cfg(feature = "format-fbx")]
     fn node_index(scene: &Scene, name: &str) -> usize {
         scene.nodes.iter().position(|n| n.element.name == name).unwrap()
     }
 
+    #[cfg(feature = "format-fbx")]
     fn bake(scene: &Scene, opts: &BakeOpts) -> BakedAnim {
         bake_anim(scene, &scene.anim_stacks[0].anim, opts).unwrap()
     }
 
+    #[cfg(feature = "format-fbx")]
     fn times_and_flags(keys: &[BakedVec3]) -> Vec<(f64, u32)> {
         keys.iter().map(|k| (k.time, k.flags)).collect()
     }

@@ -1,12 +1,92 @@
 use std::sync::Arc;
 
+use crate::api::pack_version;
 use crate::context::Context;
 use crate::error::{Res, WarningType, Warnings, check};
 use crate::math::*;
 use crate::props::name_key;
-use crate::read::{is_node_property_name, pack_version};
 use crate::search::{lower_bound_eq, stable_sort, upper_bound_eq};
 use crate::types::*;
+
+/// The properties a model keeps when a pre-7000 model is split into a node and its attribute
+pub(crate) const NODE_PROP_NAMES: &[&str] = &[
+    "AxisLen",
+    "DefaultAttributeIndex",
+    "Freeze",
+    "GeometricRotation",
+    "GeometricScaling",
+    "GeometricTranslation",
+    "InheritType",
+    "LODBox",
+    "Lcl Rotation",
+    "Lcl Scaling",
+    "Lcl Translation",
+    "LookAtProperty",
+    "MaxDampRangeX",
+    "MaxDampRangeY",
+    "MaxDampRangeZ",
+    "MaxDampStrengthX",
+    "MaxDampStrengthY",
+    "MaxDampStrengthZ",
+    "MinDampRangeX",
+    "MinDampRangeY",
+    "MinDampRangeZ",
+    "MinDampStrengthX",
+    "MinDampStrengthY",
+    "MinDampStrengthZ",
+    "NegativePercentShapeSupport",
+    "PostRotation",
+    "PreRotation",
+    "PreferedAngleX",
+    "PreferedAngleY",
+    "PreferedAngleZ",
+    "QuaternionInterpolate",
+    "RotationActive",
+    "RotationMax",
+    "RotationMaxX",
+    "RotationMaxY",
+    "RotationMaxZ",
+    "RotationMin",
+    "RotationMinX",
+    "RotationMinY",
+    "RotationMinZ",
+    "RotationOffset",
+    "RotationOrder",
+    "RotationPivot",
+    "RotationSpaceForLimitOnly",
+    "RotationStiffnessX",
+    "RotationStiffnessY",
+    "RotationStiffnessZ",
+    "ScalingActive",
+    "ScalingMax",
+    "ScalingMaxX",
+    "ScalingMaxY",
+    "ScalingMaxZ",
+    "ScalingMin",
+    "ScalingMinX",
+    "ScalingMinY",
+    "ScalingMinZ",
+    "ScalingOffset",
+    "ScalingPivot",
+    "Show",
+    "TranslationActive",
+    "TranslationMax",
+    "TranslationMaxX",
+    "TranslationMaxY",
+    "TranslationMaxZ",
+    "TranslationMin",
+    "TranslationMinX",
+    "TranslationMinY",
+    "TranslationMinZ",
+    "UpVectorProperty",
+    "Visibility Inheritance",
+    "Visibility",
+    "notes",
+];
+
+pub(crate) fn is_node_property_name(name: &str) -> bool {
+    NODE_PROP_NAMES.contains(&name)
+}
 
 pub(crate) fn type_of(scene: &Scene, id: ElementId) -> ElementType {
     scene.elements[id as usize].element_type

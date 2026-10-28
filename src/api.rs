@@ -7,6 +7,11 @@ use crate::props::name_key;
 use crate::search::{lower_bound_eq, upper_bound_eq};
 use crate::types::*;
 
+/// 2019.2.0 as 2019002000
+pub fn pack_version(a: u32, b: u32, c: u32) -> u32 {
+    a.wrapping_mul(1000000).wrapping_add(b.wrapping_mul(1000)).wrapping_add(c)
+}
+
 fn str_less(a: &str, b: &str) -> bool {
     a.as_bytes() < b.as_bytes()
 }

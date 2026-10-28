@@ -1,7 +1,6 @@
 use crate::error::{Res, check};
 use crate::math::*;
-use crate::mesh::{finalize_mesh, finalize_mesh_material};
-use crate::read::{patch_mesh_reals, update_face_groups};
+use crate::mesh::{finalize_mesh, finalize_mesh_material, patch_mesh_reals, update_face_groups};
 use crate::search::unstable_sort;
 use crate::topology::{compute_normals, compute_topology, generate_normal_mapping, topo_next_vertex_edge, topo_prev_vertex_edge};
 use crate::types::*;

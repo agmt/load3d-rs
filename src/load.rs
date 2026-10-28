@@ -1,14 +1,15 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::context::{Context, DomAlias, ElementInfo, SYNTHETIC_ID_START, TopChildren};
-use crate::error::{Error, ErrorType, Res, WarningType, check};
+use crate::context::{Context, DomAlias, SYNTHETIC_ID_START};
+use crate::error::{Error, ErrorType, Res, check};
 use crate::matcher::{is_format, match_pattern};
 use crate::math::*;
 use crate::parse::{Io, PArr, PData, PNode, PVal, ParseOpts, Parser, first_described};
 use crate::types::*;
 
-use crate::legacy::supports_version;
+#[cfg(feature = "format-fbx")]
+use crate::{error::WarningType, legacy::supports_version};
 
 /// Part of `ufbxi_load` in ufbx.c
 fn complete_opts(mut opts: LoadOpts) -> LoadOpts {
@@ -82,14 +83,14 @@ fn determine_format(p: &mut Parser, opts: &LoadOpts) -> Res<FileFormat> {
     Ok(format)
 }
 
-impl Default for PNode {
-    fn default() -> PNode {
-        PNode { name: String::new(), raw_name: None, dom_name: None, data: PData::Vals(Vec::new()), children: Vec::new() }
+impl Default for PNode<'_> {
+    fn default() -> Self {
+        PNode { name: Default::default(), raw_name: None, dom_name: None, data: PData::Vals(Vec::new()), children: Vec::new() }
     }
 }
 
 fn retain_dom_node(node: &PNode) -> DomNode {
-    let name = node.dom_name.clone().unwrap_or_else(|| node.name.clone());
+    let name = node.dom_name.clone().unwrap_or_else(|| node.name.to_string());
     let mut dst = DomNode { name, ..Default::default() };
     match &node.data {
         PData::Arr(arr) => {
@@ -101,7 +102,7 @@ fn retain_dom_node(node: &PNode) -> DomNode {
                 PArr::I64(v) => (DomValueType::ArrayI64, v.iter().flat_map(|x| x.to_le_bytes()).collect(), DomArray::I64(v.clone())),
                 PArr::F32(v) => (DomValueType::ArrayF32, v.iter().flat_map(|x| x.to_le_bytes()).collect(), DomArray::F32(v.clone())),
                 PArr::F64(v) => (DomValueType::ArrayF64, v.iter().flat_map(|x| x.to_le_bytes()).collect(), DomArray::F64(v.clone())),
-                PArr::Str(v) => (DomValueType::ArrayBlob, Vec::new(), DomArray::Blob(v.iter().map(|s| s.raw.clone()).collect())),
+                PArr::Str(v) => (DomValueType::ArrayBlob, Vec::new(), DomArray::Blob(v.iter().map(|s| s.raw().to_vec()).collect())),
                 PArr::Content(v) => (DomValueType::ArrayBlob, Vec::new(), DomArray::Blob(v.clone())),
                 PArr::Ignored => (DomValueType::ArrayIgnored, Vec::new(), DomArray::U8(Vec::new())),
             };
@@ -121,8 +122,8 @@ fn retain_dom_node(node: &PNode) -> DomNode {
                     PVal::Str(s) => dst.values.push(DomValue {
                         value_type: DomValueType::String,
                         // `ufbxi_get_val_at` with 'S' gives nothing for a string kept raw
-                        value_str: s.utf8.clone().unwrap_or_default(),
-                        value_blob: s.raw.clone(),
+                        value_str: s.utf8().unwrap_or_default().to_string(),
+                        value_blob: s.raw().to_vec(),
                         ..Default::default()
                     }),
                     PVal::Num { f, i } => dst.values.push(DomValue { value_type: DomValueType::Number, value_int: *i, value_float: *f, ..Default::default() }),
@@ -288,117 +289,6 @@ impl<'a> Context<'a> {
             shared_normals: Vec::new(),
             opts,
         }
-    }
-
-    /// Met for the first time, its children are left to the parser's top level, as ufbx leaves them
-    fn take_toplevel(&mut self, name: &str) -> Res<(PNode, Option<usize>)> {
-        let Some(i) = self.p.parse_toplevel(name)? else { return Ok((PNode::default(), None)) };
-        Ok((std::mem::take(&mut self.p.top_nodes[i]), Some(i)))
-    }
-
-    fn put_toplevel(&mut self, node: PNode, index: Option<usize>) {
-        if let Some(i) = index {
-            self.p.top_nodes[i] = node;
-        }
-    }
-
-    /// Part of `ufbxi_parse_toplevel` in ufbx.c
-    pub(crate) fn toplevel_children(&mut self, name: &str) -> Res<TopChildren> {
-        let Some(i) = self.p.parse_toplevel(name)? else { return Ok(TopChildren::parsed(0, Vec::new())) };
-        if self.p.is_lazy(i) {
-            return Ok(TopChildren { ix: i as u32, lazy: true, parsed: Vec::new().into_iter(), read: 0 });
-        }
-        Ok(TopChildren::parsed(i as u32, self.p.top_nodes[i].children.clone()))
-    }
-
-    /// A node met for the first time has its next child parsed now, kept for the DOM and not for later lookups, as ufbx keeps it
-    pub(crate) fn parse_toplevel_child(&mut self, c: &mut TopChildren) -> Res<Option<PNode>> {
-        let child = if c.lazy {
-            let child = self.p.next_lazy_child()?;
-            if let Some(ch) = &child {
-                self.p.keep_child(c.ix as usize, ch.clone());
-            }
-            child
-        } else {
-            c.parsed.next()
-        };
-        if child.is_some() {
-            c.read += 1;
-        }
-        Ok(child)
-    }
-
-    fn read_root(&mut self) -> Res<()> {
-        let mut children = self.toplevel_children("FBXHeaderExtension")?;
-        self.read_header_extension(&mut children)?;
-        // ufbx's tokenizer sets the exporter itself on a second header comment "Created by Blender"
-        if self.p.ascii_blender {
-            self.exporter = Exporter::BlenderAscii;
-        }
-
-        if self.exporter == Exporter::BlenderAscii {
-            let (top, ix) = self.take_toplevel("Creator")?;
-            if ix.is_some()
-                && let Some(s) = top.str_at(0)
-            {
-                self.scene.metadata.creator = s.to_string();
-            }
-            self.put_toplevel(top, ix);
-        }
-
-        self.match_exporter();
-        self.p.set_found_version();
-
-        if self.version() >= 7000 {
-            let mut children = self.toplevel_children("Documents")?;
-            self.read_document(&mut children)?;
-        } else {
-            let root_name: &[u8] = if self.from_ascii() { b"Model::Scene" } else { b"Scene\x00\x01Model" };
-            self.root_id = self.synthetic_id_from_string(root_name);
-        }
-
-        let root_info = ElementInfo { fbx_id: self.root_id, ..Default::default() };
-        let root = self.push_element(&root_info, ElementType::Node);
-        crate::legacy::setup_root_node(self, root);
-        let root_id = self.scene.nodes[root].element.element_id;
-        self.tmp_node_ids.push(root_id);
-
-        let mut children = self.toplevel_children("Definitions")?;
-        self.read_definitions(&mut children)?;
-
-        let ix = self.p.parse_toplevel("Objects")?;
-        if !self.p.sure_fbx {
-            check!(ix.is_some(), "Not an FBX file");
-        }
-        if let Some(ix) = ix {
-            self.read_objects(ix)?;
-        }
-
-        let mut children = self.toplevel_children("Connections")?;
-        self.read_connections(&mut children)?;
-
-        let mut children = self.toplevel_children("Takes")?;
-        crate::legacy::read_takes(self, &mut children)?;
-
-        let (top, ix) = self.take_toplevel("GlobalSettings")?;
-        if ix.is_some() {
-            // `ufbxi_read_global_settings` in ufbx.c
-            self.scene.settings.props = self.read_properties(&top)?;
-        }
-        self.put_toplevel(top, ix);
-
-        let (top, ix) = self.take_toplevel("Version5")?;
-        if ix.is_some()
-            && let Some(settings) = top.children.iter().find(|c| c.name == "Settings")
-        {
-            crate::legacy::read_legacy_settings(self, settings)?;
-        }
-        self.put_toplevel(top, ix);
-
-        if self.opts.retain_dom {
-            self.p.parse_to_end()?;
-        }
-        Ok(())
     }
 
     fn transform_to_axes(&mut self, dst_axes: CoordinateAxes) {
@@ -621,11 +511,15 @@ fn load(data: &[u8], opts: LoadOpts, io: Io, size: Option<u64>) -> Result<Scene,
                 Some(pending) => first_described(pending, e),
                 None => e,
             };
-            let mut e = e.fix_error_type("Failed to load");
-            if e.kind == ErrorType::Unknown && ctx.scene.metadata.file_format == FileFormat::Fbx && !supports_version(ctx.p.version) {
-                e = Error::new("Unsupported version").set_err_info(ctx.p.version.to_string());
-                e.kind = ErrorType::UnsupportedVersion;
-            }
+            let e = e.fix_error_type("Failed to load");
+            #[cfg(feature = "format-fbx")]
+            let e = if e.kind == ErrorType::Unknown && ctx.scene.metadata.file_format == FileFormat::Fbx && !supports_version(ctx.p.version) {
+                let mut unsupported = Error::new("Unsupported version").set_err_info(ctx.p.version.to_string());
+                unsupported.kind = ErrorType::UnsupportedVersion;
+                unsupported
+            } else {
+                e
+            };
             Err(e)
         }
     }
@@ -1058,4 +952,17 @@ mod tests {
         let e = load_memory(b"v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n", &opts).unwrap_err();
         assert_eq!((e.kind, e.description.as_str(), e.info.as_str()), (ErrorType::FeatureDisabled, "Feature disabled", "format-obj"));
     }
+}
+
+/// `root` indexes `ctx.scene.nodes`
+pub(crate) fn setup_root_node(ctx: &mut Context, root: usize) {
+    let (local_transform, node_to_parent) = if ctx.opts.use_root_transform {
+        (ctx.opts.root_transform, transform_to_matrix(&ctx.opts.root_transform))
+    } else {
+        (Transform::IDENTITY, Matrix::IDENTITY)
+    };
+    let node = &mut ctx.scene.nodes[root];
+    node.local_transform = local_transform;
+    node.node_to_parent = node_to_parent;
+    node.is_root = true;
 }

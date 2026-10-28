@@ -99,8 +99,8 @@ pub fn default_open_file(path: &str, _info: &OpenFileInfo) -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::WarningType;
-    use crate::load::load_memory;
+    #[cfg(feature = "format-fbx")]
+    use crate::{error::WarningType, load::load_memory};
 
     #[test]
     fn a_relative_name_joins_the_root_and_each_dot_dot_takes_a_directory_off() {
@@ -113,6 +113,7 @@ mod tests {
         assert_eq!(trim_delimiters(b'/', b"model.fbx"), 0);
     }
 
+    #[cfg(feature = "format-fbx")]
     const MINIMAL: &[u8] = b"; FBX 7.4.0 project file\nObjects:  {\n}\n";
 
     #[cfg(feature = "format-fbx")]

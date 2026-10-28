@@ -1,90 +1,195 @@
 use std::sync::Arc;
 
-use crate::context::{Context, DomAlias, ElementInfo, Template, TmpBonePose, TmpMeshTexture, TopChildren};
-use crate::error::{Res, WarningType, check, fail};
+use crate::api::pack_version;
+use crate::context::{Context, DomAlias, ElementInfo, POINTER_ID_START, Template, TmpBonePose, TmpConnection, TmpMeshTexture};
+use crate::error::{Res, WarningType, check, fail, fail_msg};
+use crate::finalize::is_node_property_name;
 use crate::math::{max_real, min_real};
+use crate::mesh::{mesh_part_add_face, patch_mesh_reals};
 use crate::parse::{PArr, PNode, PVal};
 use crate::props::{deduplicate_properties, name_key, sort_properties};
 use crate::types::*;
 
-/// The properties a model keeps when a pre-7000 model is split into a node and its attribute
-pub(crate) const NODE_PROP_NAMES: &[&str] = &[
-    "AxisLen",
-    "DefaultAttributeIndex",
-    "Freeze",
-    "GeometricRotation",
-    "GeometricScaling",
-    "GeometricTranslation",
-    "InheritType",
-    "LODBox",
-    "Lcl Rotation",
-    "Lcl Scaling",
-    "Lcl Translation",
-    "LookAtProperty",
-    "MaxDampRangeX",
-    "MaxDampRangeY",
-    "MaxDampRangeZ",
-    "MaxDampStrengthX",
-    "MaxDampStrengthY",
-    "MaxDampStrengthZ",
-    "MinDampRangeX",
-    "MinDampRangeY",
-    "MinDampRangeZ",
-    "MinDampStrengthX",
-    "MinDampStrengthY",
-    "MinDampStrengthZ",
-    "NegativePercentShapeSupport",
-    "PostRotation",
-    "PreRotation",
-    "PreferedAngleX",
-    "PreferedAngleY",
-    "PreferedAngleZ",
-    "QuaternionInterpolate",
-    "RotationActive",
-    "RotationMax",
-    "RotationMaxX",
-    "RotationMaxY",
-    "RotationMaxZ",
-    "RotationMin",
-    "RotationMinX",
-    "RotationMinY",
-    "RotationMinZ",
-    "RotationOffset",
-    "RotationOrder",
-    "RotationPivot",
-    "RotationSpaceForLimitOnly",
-    "RotationStiffnessX",
-    "RotationStiffnessY",
-    "RotationStiffnessZ",
-    "ScalingActive",
-    "ScalingMax",
-    "ScalingMaxX",
-    "ScalingMaxY",
-    "ScalingMaxZ",
-    "ScalingMin",
-    "ScalingMinX",
-    "ScalingMinY",
-    "ScalingMinZ",
-    "ScalingOffset",
-    "ScalingPivot",
-    "Show",
-    "TranslationActive",
-    "TranslationMax",
-    "TranslationMaxX",
-    "TranslationMaxY",
-    "TranslationMaxZ",
-    "TranslationMin",
-    "TranslationMinX",
-    "TranslationMinY",
-    "TranslationMinZ",
-    "UpVectorProperty",
-    "Visibility Inheritance",
-    "Visibility",
-    "notes",
-];
+pub(crate) struct TopChildren<'a> {
+    pub ix: u32,
+    pub lazy: bool,
+    pub parsed: std::vec::IntoIter<PNode<'a>>,
+    pub read: u32,
+}
 
-pub(crate) fn is_node_property_name(name: &str) -> bool {
-    NODE_PROP_NAMES.contains(&name)
+impl<'a> TopChildren<'a> {
+    pub fn parsed(ix: u32, children: Vec<PNode<'a>>) -> TopChildren<'a> {
+        TopChildren { ix, lazy: false, parsed: children.into_iter(), read: 0 }
+    }
+}
+
+impl<'a> Context<'a> {
+    pub fn from_ascii(&self) -> bool {
+        self.p.from_ascii
+    }
+    pub fn synthetic_id_from_ptr_id(&mut self, ptr: u64, id: u64) -> u64 {
+        if let Some(&v) = self.ptr_fbx_id_map.get(&(ptr, id)) {
+            return v;
+        }
+        let v = self.push_synthetic_id();
+        self.ptr_fbx_id_map.insert((ptr, id), v);
+        v
+    }
+    pub fn validate_fbx_id(&mut self, id: u64) -> u64 {
+        if id >= POINTER_ID_START { self.synthetic_id_from_ptr_id(0, id) } else { id }
+    }
+    pub fn insert_fbx_attr(&mut self, fbx_id: u64, attrib_fbx_id: u64) {
+        self.fbx_attr_map.entry(fbx_id).or_insert(attrib_fbx_id);
+    }
+    pub fn connect_pp(&mut self, src: u64, dst: u64, src_prop: &str, dst_prop: &str) {
+        self.tmp_connections.push(TmpConnection { src, dst, src_prop: src_prop.to_string(), dst_prop: dst_prop.to_string() });
+    }
+    pub fn find_template(&self, name: &str, sub_type: &str) -> Option<Arc<Props>> {
+        for t in &self.templates {
+            if t.type_ == name {
+                if !matches!(t.type_.as_str(), "Material" | "Model" | "AnimationStack" | "AnimationLayer") && t.sub_type != sub_type {
+                    return None;
+                }
+                return if t.props.props.is_empty() { None } else { Some(t.props.clone()) };
+            }
+        }
+        None
+    }
+    /// Extended with `NO_INDEX` to `num_indexers`, every index past `num_elems` fixed, `num_indexers` of them kept
+    pub fn check_indices(&mut self, mut indices: Vec<u32>, num_indexers: usize, num_elems: usize) -> Res<Vec<u32>> {
+        if indices.len() < num_indexers {
+            indices.resize(num_indexers, NO_INDEX);
+        }
+        for i in 0..indices.len() {
+            let ix = indices[i];
+            if ix as usize >= num_elems {
+                indices[i] = self.fix_index(ix, num_elems)?;
+            }
+        }
+        // a longer list is fixed whole and then counted as long as the mesh's
+        indices.truncate(num_indexers);
+        Ok(indices)
+    }
+    pub fn dom_alias(&mut self, base: &Option<DomRef>, parent: &PNode, child: &str, alias: DomAlias) {
+        if let Some(base) = base
+            && let Some(ci) = parent.children.iter().position(|c| c.name == child)
+        {
+            let mut path = base.clone();
+            path.push(ci as u32);
+            self.dom_aliases.push((path, alias));
+        }
+    }
+    pub fn fail_strict(&self, msg: &str) -> Res<()> {
+        if self.opts.strict { fail_msg(msg) } else { Ok(()) }
+    }
+    /// Met for the first time, its children are left to the parser's top level, as ufbx leaves them
+    fn take_toplevel(&mut self, name: &str) -> Res<(PNode<'a>, Option<usize>)> {
+        let Some(i) = self.p.parse_toplevel(name)? else { return Ok((PNode::default(), None)) };
+        Ok((std::mem::take(&mut self.p.top_nodes[i]), Some(i)))
+    }
+    fn put_toplevel(&mut self, node: PNode<'a>, index: Option<usize>) {
+        if let Some(i) = index {
+            self.p.top_nodes[i] = node;
+        }
+    }
+    /// Part of `ufbxi_parse_toplevel` in ufbx.c
+    pub(crate) fn toplevel_children(&mut self, name: &str) -> Res<TopChildren<'a>> {
+        let Some(i) = self.p.parse_toplevel(name)? else { return Ok(TopChildren::parsed(0, Vec::new())) };
+        if self.p.is_lazy(i) {
+            return Ok(TopChildren { ix: i as u32, lazy: true, parsed: Vec::new().into_iter(), read: 0 });
+        }
+        Ok(TopChildren::parsed(i as u32, self.p.top_nodes[i].children.clone()))
+    }
+    /// A node met for the first time has its next child parsed now, kept for the DOM and not for later lookups, as ufbx keeps it
+    pub(crate) fn parse_toplevel_child(&mut self, c: &mut TopChildren<'a>) -> Res<Option<PNode<'a>>> {
+        let child = if c.lazy {
+            let child = self.p.next_lazy_child()?;
+            if let Some(ch) = &child
+                && self.p.opts.retain_dom
+            {
+                self.p.keep_child(c.ix as usize, ch.clone());
+            }
+            child
+        } else {
+            c.parsed.next()
+        };
+        if child.is_some() {
+            c.read += 1;
+        }
+        Ok(child)
+    }
+    pub(crate) fn read_root(&mut self) -> Res<()> {
+        let mut children = self.toplevel_children("FBXHeaderExtension")?;
+        self.read_header_extension(&mut children)?;
+        // ufbx's tokenizer sets the exporter itself on a second header comment "Created by Blender"
+        if self.p.ascii_blender {
+            self.exporter = Exporter::BlenderAscii;
+        }
+
+        if self.exporter == Exporter::BlenderAscii {
+            let (top, ix) = self.take_toplevel("Creator")?;
+            if ix.is_some()
+                && let Some(s) = top.str_at(0)
+            {
+                self.scene.metadata.creator = s.to_string();
+            }
+            self.put_toplevel(top, ix);
+        }
+
+        self.match_exporter();
+        self.p.set_found_version();
+
+        if self.version() >= 7000 {
+            let mut children = self.toplevel_children("Documents")?;
+            self.read_document(&mut children)?;
+        } else {
+            let root_name: &[u8] = if self.from_ascii() { b"Model::Scene" } else { b"Scene\x00\x01Model" };
+            self.root_id = self.synthetic_id_from_string(root_name);
+        }
+
+        let root_info = ElementInfo { fbx_id: self.root_id, ..Default::default() };
+        let root = self.push_element(&root_info, ElementType::Node);
+        crate::load::setup_root_node(self, root);
+        let root_id = self.scene.nodes[root].element.element_id;
+        self.tmp_node_ids.push(root_id);
+
+        let mut children = self.toplevel_children("Definitions")?;
+        self.read_definitions(&mut children)?;
+
+        let ix = self.p.parse_toplevel("Objects")?;
+        if !self.p.sure_fbx {
+            check!(ix.is_some(), "Not an FBX file");
+        }
+        if let Some(ix) = ix {
+            self.read_objects(ix)?;
+        }
+
+        let mut children = self.toplevel_children("Connections")?;
+        self.read_connections(&mut children)?;
+
+        let mut children = self.toplevel_children("Takes")?;
+        crate::legacy::read_takes(self, &mut children)?;
+
+        let (top, ix) = self.take_toplevel("GlobalSettings")?;
+        if ix.is_some() {
+            // `ufbxi_read_global_settings` in ufbx.c
+            self.scene.settings.props = self.read_properties(&top)?;
+        }
+        self.put_toplevel(top, ix);
+
+        let (top, ix) = self.take_toplevel("Version5")?;
+        if ix.is_some()
+            && let Some(settings) = top.children.iter().find(|c| c.name == "Settings")
+        {
+            crate::legacy::read_legacy_settings(self, settings)?;
+        }
+        self.put_toplevel(top, ix);
+
+        if self.opts.retain_dom {
+            self.p.parse_to_end()?;
+        }
+        Ok(())
+    }
 }
 
 pub(crate) fn get_prop_type(name: &str) -> PropType {
@@ -111,35 +216,35 @@ pub(crate) fn get_prop_type(name: &str) -> PropType {
 // An array of another type counts as absent (`ufbxi_get_array` in ufbx.c)
 
 /// Part of `ufbxi_get_array` in ufbx.c
-pub(crate) fn arr_f64(n: &PNode) -> Option<&Vec<f64>> {
+pub(crate) fn arr_f64<'n>(n: &'n PNode) -> Option<&'n Vec<f64>> {
     match n.get_array()? {
         PArr::F64(v) => Some(v),
         _ => None,
     }
 }
 /// Part of `ufbxi_get_array` in ufbx.c
-pub(crate) fn arr_i32(n: &PNode) -> Option<&Vec<i32>> {
+pub(crate) fn arr_i32<'n>(n: &'n PNode) -> Option<&'n Vec<i32>> {
     match n.get_array()? {
         PArr::I32(v) => Some(v),
         _ => None,
     }
 }
 /// Part of `ufbxi_get_array` in ufbx.c
-pub(crate) fn arr_i64(n: &PNode) -> Option<&Vec<i64>> {
+pub(crate) fn arr_i64<'n>(n: &'n PNode) -> Option<&'n Vec<i64>> {
     match n.get_array()? {
         PArr::I64(v) => Some(v),
         _ => None,
     }
 }
 /// Part of `ufbxi_get_array` in ufbx.c
-pub(crate) fn arr_bool(n: &PNode) -> Option<&Vec<bool>> {
+pub(crate) fn arr_bool<'n>(n: &'n PNode) -> Option<&'n Vec<bool>> {
     match n.get_array()? {
         PArr::Bool(v) | PArr::BoolInts(v, _) => Some(v),
         _ => None,
     }
 }
 /// Part of `ufbxi_get_array` in ufbx.c
-pub(crate) fn arr_u8(n: &PNode) -> Option<&Vec<u8>> {
+pub(crate) fn arr_u8<'n>(n: &'n PNode) -> Option<&'n Vec<u8>> {
     match n.get_array()? {
         PArr::U8(v) => Some(v),
         _ => None,
@@ -223,11 +328,6 @@ fn match_version_string(fmt: &str, s: &str, out: &mut [u32; 3]) -> bool {
         }
     }
     true
-}
-
-/// 2019.2.0 as 2019002000
-pub fn pack_version(a: u32, b: u32, c: u32) -> u32 {
-    a.wrapping_mul(1000000).wrapping_add(b.wrapping_mul(1000)).wrapping_add(c)
 }
 
 const KEY_INTERPOLATION_CONSTANT: u32 = 0x2;
@@ -382,7 +482,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    pub(crate) fn read_header_extension(&mut self, children: &mut TopChildren) -> Res<()> {
+    pub(crate) fn read_header_extension(&mut self, children: &mut TopChildren<'a>) -> Res<()> {
         let mut has_tc_definition = false;
         let mut tc_definition = 0;
         let mut header_version = 0;
@@ -463,7 +563,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub(crate) fn read_document(&mut self, children: &mut TopChildren) -> Res<()> {
+    pub(crate) fn read_document(&mut self, children: &mut TopChildren<'a>) -> Res<()> {
         let mut found_root_id = false;
         while let Some(child) = self.parse_toplevel_child(children)? {
             if child.name == "Document"
@@ -477,7 +577,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    pub(crate) fn read_definitions(&mut self, children: &mut TopChildren) -> Res<()> {
+    pub(crate) fn read_definitions(&mut self, children: &mut TopChildren<'a>) -> Res<()> {
         while let Some(object) = self.parse_toplevel_child(children)? {
             let object = &object;
             if object.name != "ObjectType" {
@@ -543,82 +643,6 @@ impl<'a> Context<'a> {
             value_real_arr: [value, 0.0, 0.0, 0.0],
             ..Default::default()
         }
-    }
-
-    pub(crate) fn init_synthetic_vec3_prop(name: &str, value: Vec3, t: PropType) -> Prop {
-        Prop {
-            name: name.to_string(),
-            internal_key: name_key(&name.as_bytes()[..4]),
-            prop_type: t,
-            flags: prop_flags::SYNTHETIC | prop_flags::VALUE_VEC3,
-            value_int: crate::parse::f64_to_i64(value.x),
-            value_real_arr: [value.x, value.y, value.z, 0.0],
-            ..Default::default()
-        }
-    }
-
-    pub(crate) fn set_own_prop_vec3_uniform(props: &mut Props, name: &str, value: Real) {
-        if let Some(p) = props.find_own_mut(name) {
-            p.value_real_arr = [value, value, value, 0.0];
-            p.value_int = value as i64;
-        }
-    }
-
-    pub(crate) fn setup_geometry_transform_helper(&mut self, node_ix: usize, node_fbx_id: u64) -> Res<()> {
-        let props = &self.scene.nodes[node_ix].element.props;
-        let geo_t = props.vec3("GeometricTranslation", Vec3::ZERO);
-        let geo_r = props.vec3("GeometricRotation", Vec3::ZERO);
-        let geo_s = props.vec3("GeometricScaling", Vec3::ONE);
-        if !crate::math::is_vec3_zero(geo_t) || !crate::math::is_vec3_zero(geo_r) || !crate::math::is_vec3_one(geo_s) {
-            let dom = self.scene.nodes[node_ix].element.dom_node.clone();
-            let name = self.opts.geometry_transform_helper_name.clone();
-            let (geo_ix, geo_fbx_id) = self.push_synthetic_element(None, Some(&name), ElementType::Node);
-            let geo_id = self.scene.nodes[geo_ix].element.element_id;
-            self.tmp_node_ids.push(geo_id);
-            let geo = &mut self.scene.nodes[geo_ix];
-            geo.element.dom_node = dom;
-            geo.element.props.props = vec![
-                Self::init_synthetic_vec3_prop("Lcl Rotation", geo_r, PropType::Rotation),
-                Self::init_synthetic_vec3_prop("Lcl Scaling", geo_s, PropType::Scaling),
-                Self::init_synthetic_vec3_prop("Lcl Translation", geo_t, PropType::Translation),
-            ];
-            geo.is_geometry_transform_helper = true;
-            self.scene.nodes[node_ix].has_geometry_transform = true;
-            self.connect_oo(geo_fbx_id, node_fbx_id);
-            self.has_geometry_transform_nodes = true;
-            let node_id = self.scene.nodes[node_ix].element.element_id;
-            self.push_element_extra(node_id).geometry_helper_id = Some(geo_id);
-        }
-        Ok(())
-    }
-
-    pub(crate) fn setup_scale_helper(&mut self, node_ix: usize, node_fbx_id: u64) -> Res<()> {
-        let dom = self.scene.nodes[node_ix].element.dom_node.clone();
-        let name = self.opts.scale_helper_name.clone();
-        let (scale_ix, scale_fbx_id) = self.push_synthetic_element(None, Some(&name), ElementType::Node);
-        let scale_id = self.scene.nodes[scale_ix].element.element_id;
-        self.tmp_node_ids.push(scale_id);
-        self.scene.nodes[scale_ix].element.dom_node = dom;
-        self.scene.nodes[node_ix].scale_helper = Some(scale_ix);
-        self.scene.nodes[scale_ix].is_scale_helper = true;
-        self.connect_oo(scale_fbx_id, node_fbx_id);
-        self.has_scale_helper_nodes = true;
-        let node_id = self.scene.nodes[node_ix].element.element_id;
-        self.push_element_extra(node_id).scale_helper_id = Some(scale_id);
-
-        let helpers: [(&str, Vec3); 4] =
-            [("GeometricRotation", Vec3::ZERO), ("GeometricScaling", Vec3::ONE), ("GeometricTranslation", Vec3::ZERO), ("Lcl Scaling", Vec3::ONE)];
-        let mut helper_props = Vec::new();
-        for (name, def) in helpers {
-            let node_props = &mut self.scene.nodes[node_ix].element.props;
-            if let Some(src) = find_own_value_mut(node_props, name) {
-                helper_props.push(src.clone());
-                src.value_real_arr = [def.x, def.y, def.z, src.value_real_arr[3]];
-                src.value_int = def.x as i64;
-            }
-        }
-        self.scene.nodes[scale_ix].element.props.props = helper_props;
-        Ok(())
     }
 
     pub(crate) fn read_model(&mut self, info: &ElementInfo) -> Res<usize> {
@@ -1023,7 +1047,7 @@ impl<'a> Context<'a> {
                 continue;
             }
             let layer = base.as_ref().map(|b| [b.as_slice(), &[li as u32]].concat());
-            match n.name.as_str() {
+            match &*n.name {
                 "LayerElementNormal" => {
                     if mesh.vertex_normal.exists {
                         continue;
@@ -2092,11 +2116,11 @@ impl<'a> Context<'a> {
         }
         let sub_raw = sub_type;
         let sub_type = String::from_utf8_lossy(&sub_raw).into_owned();
-        let node_name = node.raw_name.clone().unwrap_or_else(|| node.name.clone().into_bytes());
+        let node_name = node.raw_name.as_deref().unwrap_or(node.name.as_bytes()).to_vec();
         let node_name = c_str(&node_name);
         let (type_str, name) = self.split_type_and_name(&type_and_name)?;
         info.name = name;
-        let name = node.name.as_str();
+        let name = &*node.name;
         info.props = self.read_properties(node)?;
         info.props.defaults = self.find_template(name, &sub_type);
 
@@ -2237,7 +2261,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    pub(crate) fn read_connections(&mut self, children: &mut TopChildren) -> Res<()> {
+    pub(crate) fn read_connections(&mut self, children: &mut TopChildren<'a>) -> Res<()> {
         while let Some(node) = self.parse_toplevel_child(children)? {
             let node = &node;
             let (src, dst, src_prop, dst_prop);
@@ -2307,13 +2331,6 @@ pub(crate) fn child_path(base: &Option<DomRef>, parent: &PNode, child: &str) -> 
     base.as_ref().map(|b| [b.as_slice(), &[ci as u32]].concat())
 }
 
-/// Part of `ufbxi_find_prop` in ufbx.c
-fn find_own_value_mut<'p>(props: &'p mut Props, name: &str) -> Option<&'p mut Prop> {
-    let key = name_key(name.as_bytes());
-    let i = props.props.partition_point(|q| q.internal_key < key);
-    props.props[i..].iter_mut().take_while(|q| q.internal_key <= key).find(|q| q.name == name && q.flags & prop_flags::NO_VALUE == 0)
-}
-
 impl Context<'_> {
     fn warn_polygon_mapping(&mut self, data_name: &str, mapping: &[u8]) {
         let text = [format!("Ignoring geometry '{data_name}' with bad mapping mode '").as_bytes(), mapping, b"'"].concat();
@@ -2377,36 +2394,6 @@ fn solve_tcb(tension: f64, continuity: f64, bias: f64, slope_left: f64, slope_ri
     ((d00 * slope_left + d01 * slope_right) as f32, (d10 * slope_left + d11 * slope_right) as f32)
 }
 
-pub(crate) fn patch_mesh_reals(mesh: &mut Mesh) {
-    mesh.vertex_position.value_reals = 3;
-    mesh.vertex_normal.value_reals = 3;
-    mesh.vertex_uv.value_reals = 2;
-    mesh.vertex_tangent.value_reals = 3;
-    mesh.vertex_bitangent.value_reals = 3;
-    mesh.vertex_color.value_reals = 4;
-    mesh.vertex_crease.value_reals = 1;
-    mesh.skinned_position.value_reals = 3;
-    mesh.skinned_normal.value_reals = 3;
-    for s in &mut mesh.uv_sets {
-        s.vertex_uv.value_reals = 2;
-        s.vertex_tangent.value_reals = 3;
-        s.vertex_bitangent.value_reals = 3;
-    }
-    for s in &mut mesh.color_sets {
-        s.vertex_color.value_reals = 4;
-    }
-}
-
-pub(crate) fn mesh_part_add_face(part: &mut MeshPart, num_indices: u32) {
-    part.num_faces += 1;
-    match num_indices {
-        0 => part.num_empty_faces += 1,
-        1 => part.num_point_faces += 1,
-        2 => part.num_line_faces += 1,
-        n => part.num_triangles += n as usize - 2,
-    }
-}
-
 pub(crate) fn assign_face_groups(mesh: &mut Mesh, retain_parts: bool) -> Res<()> {
     let num_faces = mesh.num_faces;
     check!(num_faces > 0);
@@ -2431,18 +2418,4 @@ pub(crate) fn assign_face_groups(mesh: &mut Mesh, retain_parts: bool) -> Res<()>
         mesh.face_group_parts = parts;
     }
     Ok(())
-}
-
-pub(crate) fn update_face_groups(mesh: &mut Mesh) {
-    let num_groups = mesh.face_group_parts.len();
-    if num_groups == 0 {
-        return;
-    }
-    let mut parts: Vec<MeshPart> = (0..num_groups).map(|i| MeshPart { index: i as u32, ..Default::default() }).collect();
-    for (i, &g) in mesh.face_group.iter().enumerate() {
-        let part = &mut parts[g as usize];
-        mesh_part_add_face(part, mesh.faces[i].num_indices);
-        part.face_indices.push(i as u32);
-    }
-    mesh.face_group_parts = parts;
 }

@@ -1105,6 +1105,7 @@ pub(crate) fn update_scene(scene: &mut Scene, initial: bool, overrides: &[Transf
     update_anim(scene);
 }
 
+#[cfg(any(feature = "format-fbx", feature = "format-obj"))]
 pub(crate) fn update_scene_metadata(metadata: &mut Metadata) {
     let props = &metadata.scene_props;
     let find = |name: &str| props.find_string(name, "").to_string();

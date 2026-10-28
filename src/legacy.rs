@@ -1,9 +1,12 @@
-use crate::context::{Context, DomAlias, ElementInfo, TopChildren};
+use crate::context::{Context, DomAlias, ElementInfo};
 use crate::error::{Res, check, fail};
-use crate::math::{max_real, min_real, transform_to_matrix};
+use crate::load::setup_root_node;
+use crate::math::{max_real, min_real};
+use crate::mesh::patch_mesh_reals;
 use crate::parse::{PArr, PNode, f64_to_i64, parse_double};
 use crate::props::{deduplicate_properties, name_key, sort_properties};
-use crate::read::{KEY_CLAMP_PROGRESSIVE, KEY_TIME_INDEPENDENT, arr_f64, arr_i32, as_u32, find_f64, find_i32, patch_mesh_reals, read_extrapolation, vec3s};
+use crate::read::TopChildren;
+use crate::read::{KEY_CLAMP_PROGRESSIVE, KEY_TIME_INDEPENDENT, arr_f64, arr_i32, as_u32, find_f64, find_i32, read_extrapolation, vec3s};
 use crate::types::*;
 
 /// ufbx names a synthetic element by a C string, so the name ends at its first NUL
@@ -369,7 +372,7 @@ fn read_take(ctx: &mut Context, node: &PNode, path: &[u32]) -> Res<()> {
     Ok(())
 }
 
-pub(crate) fn read_takes(ctx: &mut Context, children: &mut TopChildren) -> Res<()> {
+pub(crate) fn read_takes<'a>(ctx: &mut Context<'a>, children: &mut TopChildren<'a>) -> Res<()> {
     while let Some(node) = ctx.parse_toplevel_child(children)? {
         if node.name == "Take" {
             read_take(ctx, &node, &[children.ix, children.read - 1])?;
@@ -414,19 +417,6 @@ pub(crate) fn read_legacy_settings(ctx: &mut Context, node: &PNode) -> Res<()> {
         *props = tmp_props;
     }
     Ok(())
-}
-
-/// `root` indexes `ctx.scene.nodes`
-pub(crate) fn setup_root_node(ctx: &mut Context, root: usize) {
-    let (local_transform, node_to_parent) = if ctx.opts.use_root_transform {
-        (ctx.opts.root_transform, transform_to_matrix(&ctx.opts.root_transform))
-    } else {
-        (Transform::IDENTITY, Matrix::IDENTITY)
-    };
-    let node = &mut ctx.scene.nodes[root];
-    node.local_transform = local_transform;
-    node.node_to_parent = node_to_parent;
-    node.is_root = true;
 }
 
 pub(crate) fn supports_version(version: u32) -> bool {
@@ -784,7 +774,7 @@ fn read_legacy_model(ctx: &mut Context, node: &PNode, top_index: u32) -> Res<()>
 
     if let Some(PArr::Str(names)) = node.find_array("Children") {
         for child_name in names {
-            let child_fbx_id = ctx.synthetic_id_from_string(&child_name.raw);
+            let child_fbx_id = ctx.synthetic_id_from_string(child_name.raw());
             ctx.connect_oo(child_fbx_id, info.fbx_id);
         }
     }
@@ -818,7 +808,7 @@ pub(crate) fn read_legacy_root(ctx: &mut Context) -> Res<()> {
 
     while let Some(node) = ctx.p.parse_legacy_toplevel()? {
         let top_index = (ctx.p.top_nodes.len() - 1) as u32;
-        match node.name.as_str() {
+        match &*node.name {
             "FBXHeaderExtension" => ctx.read_header_extension(&mut TopChildren::parsed(top_index, node.children))?,
             "Media" => read_legacy_media(ctx, &node, top_index)?,
             "Takes" => read_takes(ctx, &mut TopChildren::parsed(top_index, node.children))?,
@@ -843,13 +833,13 @@ pub(crate) fn read_legacy_root(ctx: &mut Context) -> Res<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::math::unscaled_transform_to_matrix;
+    use crate::math::{transform_to_matrix, unscaled_transform_to_matrix};
 
     fn context(data: &[u8], opts: LoadOpts) -> Context<'_> {
         Context::new(data, opts)
     }
 
-    fn top(ctx: &mut Context, name: &str) -> Res<Option<(PNode, u32)>> {
+    fn top<'a>(ctx: &mut Context<'a>, name: &str) -> Res<Option<(PNode<'a>, u32)>> {
         let Some(i) = ctx.p.parse_toplevel(name)? else { return Ok(None) };
         let mut node = ctx.p.top_nodes[i].clone();
         if ctx.p.is_lazy(i) {
@@ -1275,18 +1265,15 @@ Settings:  {
     #[test]
     fn legacy_settings_are_read_once() {
         let node = |fps: &str| PNode {
-            name: "Settings".to_string(),
+            name: "Settings".into(),
             raw_name: None,
             dom_name: None,
             data: crate::parse::PData::Vals(Vec::new()),
             children: vec![PNode {
-                name: "FrameRate".to_string(),
+                name: "FrameRate".into(),
                 raw_name: None,
                 dom_name: None,
-                data: crate::parse::PData::Vals(vec![crate::parse::PVal::Str(crate::parse::SStr {
-                    raw: fps.as_bytes().to_vec(),
-                    utf8: Some(fps.to_string()),
-                })]),
+                data: crate::parse::PData::Vals(vec![crate::parse::PVal::Str(crate::parse::SStr::text(fps.to_string()))]),
                 children: Vec::new(),
             }],
         };

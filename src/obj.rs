@@ -3,13 +3,12 @@ use std::sync::Arc;
 
 use crate::context::{Context, ElementInfo};
 use crate::error::{Error, Res, WarningType, check, clean_string_utf8, fail};
-use crate::legacy::setup_root_node;
+use crate::load::setup_root_node;
 use crate::matcher::match_pattern;
-use crate::mesh::finalize_mesh;
+use crate::mesh::{finalize_mesh, update_face_groups};
 use crate::parse::{Io, ParseOpts, Parser, f64_to_i64, parse_double};
 use crate::paths::{default_open_file, init_file_paths, open_file, resolve_relative_filename};
 use crate::props::{deduplicate_properties, name_key, sort_properties};
-use crate::read::update_face_groups;
 use crate::types::*;
 
 const POSITION: usize = 0;

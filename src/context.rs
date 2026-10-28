@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::error::{Error, Res, WarningType, check, fail_msg};
-use crate::parse::{PNode, Parser};
+use crate::error::{Error, Res, WarningType, check};
+use crate::parse::Parser;
+use crate::props::name_key;
 use crate::types::*;
 
 pub(crate) const POINTER_ID_START: u64 = 0x8000_0000_0000_0000;
@@ -129,6 +130,7 @@ pub(crate) struct TmpConnection {
 }
 
 #[derive(Debug, Clone, Default)]
+#[cfg_attr(not(feature = "format-fbx"), allow(dead_code))]
 pub(crate) struct Template {
     pub type_: String,
     pub sub_type: String,
@@ -168,6 +170,7 @@ pub(crate) struct Extra {
 
 /// A scene list ufbx keeps in the parsed array itself, so that its DOM shows the list as the load leaves it
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(not(feature = "format-fbx"), allow(dead_code))]
 pub(crate) enum DomAlias {
     MeshVertices(usize),
     NormalValues(usize),
@@ -202,6 +205,7 @@ pub(crate) struct FileContent {
     pub content: Vec<u8>,
 }
 
+#[cfg_attr(not(feature = "format-fbx"), allow(dead_code))]
 pub(crate) struct Context<'a> {
     pub opts: LoadOpts,
     pub p: Parser<'a>,
@@ -241,30 +245,86 @@ pub(crate) struct Context<'a> {
     pub shared_normals: Vec<u32>,
 }
 
-pub(crate) struct TopChildren {
-    pub ix: u32,
-    pub lazy: bool,
-    pub parsed: std::vec::IntoIter<PNode>,
-    pub read: u32,
-}
-
-impl TopChildren {
-    pub fn parsed(ix: u32, children: Vec<PNode>) -> TopChildren {
-        TopChildren { ix, lazy: false, parsed: children.into_iter(), read: 0 }
-    }
-}
-
 impl<'a> Context<'a> {
+    pub(crate) fn init_synthetic_vec3_prop(name: &str, value: Vec3, t: PropType) -> Prop {
+        Prop {
+            name: name.to_string(),
+            internal_key: name_key(&name.as_bytes()[..4]),
+            prop_type: t,
+            flags: prop_flags::SYNTHETIC | prop_flags::VALUE_VEC3,
+            value_int: crate::parse::f64_to_i64(value.x),
+            value_real_arr: [value.x, value.y, value.z, 0.0],
+            ..Default::default()
+        }
+    }
+    pub(crate) fn set_own_prop_vec3_uniform(props: &mut Props, name: &str, value: Real) {
+        if let Some(p) = props.find_own_mut(name) {
+            p.value_real_arr = [value, value, value, 0.0];
+            p.value_int = value as i64;
+        }
+    }
+    pub(crate) fn setup_geometry_transform_helper(&mut self, node_ix: usize, node_fbx_id: u64) -> Res<()> {
+        let props = &self.scene.nodes[node_ix].element.props;
+        let geo_t = props.vec3("GeometricTranslation", Vec3::ZERO);
+        let geo_r = props.vec3("GeometricRotation", Vec3::ZERO);
+        let geo_s = props.vec3("GeometricScaling", Vec3::ONE);
+        if !crate::math::is_vec3_zero(geo_t) || !crate::math::is_vec3_zero(geo_r) || !crate::math::is_vec3_one(geo_s) {
+            let dom = self.scene.nodes[node_ix].element.dom_node.clone();
+            let name = self.opts.geometry_transform_helper_name.clone();
+            let (geo_ix, geo_fbx_id) = self.push_synthetic_element(None, Some(&name), ElementType::Node);
+            let geo_id = self.scene.nodes[geo_ix].element.element_id;
+            self.tmp_node_ids.push(geo_id);
+            let geo = &mut self.scene.nodes[geo_ix];
+            geo.element.dom_node = dom;
+            geo.element.props.props = vec![
+                Self::init_synthetic_vec3_prop("Lcl Rotation", geo_r, PropType::Rotation),
+                Self::init_synthetic_vec3_prop("Lcl Scaling", geo_s, PropType::Scaling),
+                Self::init_synthetic_vec3_prop("Lcl Translation", geo_t, PropType::Translation),
+            ];
+            geo.is_geometry_transform_helper = true;
+            self.scene.nodes[node_ix].has_geometry_transform = true;
+            self.connect_oo(geo_fbx_id, node_fbx_id);
+            self.has_geometry_transform_nodes = true;
+            let node_id = self.scene.nodes[node_ix].element.element_id;
+            self.push_element_extra(node_id).geometry_helper_id = Some(geo_id);
+        }
+        Ok(())
+    }
+    pub(crate) fn setup_scale_helper(&mut self, node_ix: usize, node_fbx_id: u64) -> Res<()> {
+        let dom = self.scene.nodes[node_ix].element.dom_node.clone();
+        let name = self.opts.scale_helper_name.clone();
+        let (scale_ix, scale_fbx_id) = self.push_synthetic_element(None, Some(&name), ElementType::Node);
+        let scale_id = self.scene.nodes[scale_ix].element.element_id;
+        self.tmp_node_ids.push(scale_id);
+        self.scene.nodes[scale_ix].element.dom_node = dom;
+        self.scene.nodes[node_ix].scale_helper = Some(scale_ix);
+        self.scene.nodes[scale_ix].is_scale_helper = true;
+        self.connect_oo(scale_fbx_id, node_fbx_id);
+        self.has_scale_helper_nodes = true;
+        let node_id = self.scene.nodes[node_ix].element.element_id;
+        self.push_element_extra(node_id).scale_helper_id = Some(scale_id);
+
+        let helpers: [(&str, Vec3); 4] =
+            [("GeometricRotation", Vec3::ZERO), ("GeometricScaling", Vec3::ONE), ("GeometricTranslation", Vec3::ZERO), ("Lcl Scaling", Vec3::ONE)];
+        let mut helper_props = Vec::new();
+        for (name, def) in helpers {
+            let node_props = &mut self.scene.nodes[node_ix].element.props;
+            if let Some(src) = find_own_value_mut(node_props, name) {
+                helper_props.push(src.clone());
+                src.value_real_arr = [def.x, def.y, def.z, src.value_real_arr[3]];
+                src.value_int = def.x as i64;
+            }
+        }
+        self.scene.nodes[scale_ix].element.props.props = helper_props;
+        Ok(())
+    }
+
     pub fn warnf(&mut self, kind: WarningType, description: impl Into<Vec<u8>>) {
         self.p.warnings.warn(kind, NO_INDEX, description);
     }
 
     pub fn warnf_tag(&mut self, kind: WarningType, element_id: u32, description: impl Into<Vec<u8>>) {
         self.p.warnings.warn(kind, element_id, description);
-    }
-
-    pub fn from_ascii(&self) -> bool {
-        self.p.from_ascii
     }
 
     pub fn version(&self) -> u32 {
@@ -274,15 +334,6 @@ impl<'a> Context<'a> {
     pub fn push_synthetic_id(&mut self) -> u64 {
         self.synthetic_id_counter += 1;
         self.synthetic_id_counter
-    }
-
-    pub fn synthetic_id_from_ptr_id(&mut self, ptr: u64, id: u64) -> u64 {
-        if let Some(&v) = self.ptr_fbx_id_map.get(&(ptr, id)) {
-            return v;
-        }
-        let v = self.push_synthetic_id();
-        self.ptr_fbx_id_map.insert((ptr, id), v);
-        v
     }
 
     /// ufbx uses the pooled string's address, so equal strings give equal ids; here each distinct string gets the next id
@@ -296,10 +347,6 @@ impl<'a> Context<'a> {
         v
     }
 
-    pub fn validate_fbx_id(&mut self, id: u64) -> u64 {
-        if id >= POINTER_ID_START { self.synthetic_id_from_ptr_id(0, id) } else { id }
-    }
-
     fn insert_fbx_id(&mut self, fbx_id: u64, element_id: u32) {
         if let std::collections::hash_map::Entry::Vacant(e) = self.fbx_id_map.entry(fbx_id) {
             e.insert(FbxIdEntry { element_id, user_id: 0 });
@@ -310,10 +357,6 @@ impl<'a> Context<'a> {
 
     pub fn find_fbx_id(&self, fbx_id: u64) -> Option<FbxIdEntry> {
         self.fbx_id_map.get(&fbx_id).copied()
-    }
-
-    pub fn insert_fbx_attr(&mut self, fbx_id: u64, attrib_fbx_id: u64) {
-        self.fbx_attr_map.entry(fbx_id).or_insert(attrib_fbx_id);
     }
 
     /// With `ufbxi_push_element_size` in ufbx.c
@@ -360,10 +403,6 @@ impl<'a> Context<'a> {
         self.tmp_connections.push(TmpConnection { src, dst, src_prop: String::new(), dst_prop: prop.to_string() });
     }
 
-    pub fn connect_pp(&mut self, src: u64, dst: u64, src_prop: &str, dst_prop: &str) {
-        self.tmp_connections.push(TmpConnection { src, dst, src_prop: src_prop.to_string(), dst_prop: dst_prop.to_string() });
-    }
-
     /// With `ufbxi_push_element_extra_size` in ufbx.c
     pub fn push_element_extra(&mut self, element_id: u32) -> &mut Extra {
         self.extra.entry(element_id).or_default()
@@ -371,18 +410,6 @@ impl<'a> Context<'a> {
 
     pub fn get_element_extra(&self, element_id: u32) -> Option<&Extra> {
         self.extra.get(&element_id)
-    }
-
-    pub fn find_template(&self, name: &str, sub_type: &str) -> Option<Arc<Props>> {
-        for t in &self.templates {
-            if t.type_ == name {
-                if !matches!(t.type_.as_str(), "Material" | "Model" | "AnimationStack" | "AnimationLayer") && t.sub_type != sub_type {
-                    return None;
-                }
-                return if t.props.props.is_empty() { None } else { Some(t.props.clone()) };
-            }
-        }
-        None
     }
 
     pub fn fix_index(&mut self, index: u32, one_past_max: usize) -> Res<u32> {
@@ -401,34 +428,11 @@ impl<'a> Context<'a> {
             IndexErrorHandling::UnsafeIgnore => Ok(index),
         }
     }
+}
 
-    /// Extended with `NO_INDEX` to `num_indexers`, every index past `num_elems` fixed, `num_indexers` of them kept
-    pub fn check_indices(&mut self, mut indices: Vec<u32>, num_indexers: usize, num_elems: usize) -> Res<Vec<u32>> {
-        if indices.len() < num_indexers {
-            indices.resize(num_indexers, NO_INDEX);
-        }
-        for i in 0..indices.len() {
-            let ix = indices[i];
-            if ix as usize >= num_elems {
-                indices[i] = self.fix_index(ix, num_elems)?;
-            }
-        }
-        // a longer list is fixed whole and then counted as long as the mesh's
-        indices.truncate(num_indexers);
-        Ok(indices)
-    }
-
-    pub fn dom_alias(&mut self, base: &Option<DomRef>, parent: &PNode, child: &str, alias: DomAlias) {
-        if let Some(base) = base
-            && let Some(ci) = parent.children.iter().position(|c| c.name == child)
-        {
-            let mut path = base.clone();
-            path.push(ci as u32);
-            self.dom_aliases.push((path, alias));
-        }
-    }
-
-    pub fn fail_strict(&self, msg: &str) -> Res<()> {
-        if self.opts.strict { fail_msg(msg) } else { Ok(()) }
-    }
+/// Part of `ufbxi_find_prop` in ufbx.c
+fn find_own_value_mut<'p>(props: &'p mut Props, name: &str) -> Option<&'p mut Prop> {
+    let key = name_key(name.as_bytes());
+    let i = props.props.partition_point(|q| q.internal_key < key);
+    props.props[i..].iter_mut().take_while(|q| q.internal_key <= key).find(|q| q.name == name && q.flags & prop_flags::NO_VALUE == 0)
 }

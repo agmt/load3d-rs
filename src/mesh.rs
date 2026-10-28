@@ -1,5 +1,4 @@
 use crate::error::Res;
-use crate::read::{mesh_part_add_face, patch_mesh_reals};
 use crate::types::*;
 
 pub(crate) fn update_vertex_first_index(mesh: &mut Mesh) {
@@ -124,4 +123,48 @@ pub(crate) fn finalize_mesh_material(mesh: &mut Mesh) -> Res<()> {
         mesh.material_part_usage_order = order;
     }
     Ok(())
+}
+
+pub(crate) fn patch_mesh_reals(mesh: &mut Mesh) {
+    mesh.vertex_position.value_reals = 3;
+    mesh.vertex_normal.value_reals = 3;
+    mesh.vertex_uv.value_reals = 2;
+    mesh.vertex_tangent.value_reals = 3;
+    mesh.vertex_bitangent.value_reals = 3;
+    mesh.vertex_color.value_reals = 4;
+    mesh.vertex_crease.value_reals = 1;
+    mesh.skinned_position.value_reals = 3;
+    mesh.skinned_normal.value_reals = 3;
+    for s in &mut mesh.uv_sets {
+        s.vertex_uv.value_reals = 2;
+        s.vertex_tangent.value_reals = 3;
+        s.vertex_bitangent.value_reals = 3;
+    }
+    for s in &mut mesh.color_sets {
+        s.vertex_color.value_reals = 4;
+    }
+}
+
+pub(crate) fn mesh_part_add_face(part: &mut MeshPart, num_indices: u32) {
+    part.num_faces += 1;
+    match num_indices {
+        0 => part.num_empty_faces += 1,
+        1 => part.num_point_faces += 1,
+        2 => part.num_line_faces += 1,
+        n => part.num_triangles += n as usize - 2,
+    }
+}
+
+pub(crate) fn update_face_groups(mesh: &mut Mesh) {
+    let num_groups = mesh.face_group_parts.len();
+    if num_groups == 0 {
+        return;
+    }
+    let mut parts: Vec<MeshPart> = (0..num_groups).map(|i| MeshPart { index: i as u32, ..Default::default() }).collect();
+    for (i, &g) in mesh.face_group.iter().enumerate() {
+        let part = &mut parts[g as usize];
+        mesh_part_add_face(part, mesh.faces[i].num_indices);
+        part.face_indices.push(i as u32);
+    }
+    mesh.face_group_parts = parts;
 }

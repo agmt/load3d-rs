@@ -218,6 +218,12 @@ impl Warnings {
 }
 
 /// A NUL counts as invalid
+/// `utf8_valid_length(s) == s.len()`, by Rust's own check: ufbx's UTF-8 is Rust's without NUL
+#[cfg(feature = "format-fbx")]
+pub(crate) fn is_utf8_valid(s: &[u8]) -> bool {
+    std::str::from_utf8(s).is_ok() && !s.contains(&0)
+}
+
 pub(crate) fn utf8_valid_length(s: &[u8]) -> usize {
     let mut index = 0;
     while index < s.len() {
