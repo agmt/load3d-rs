@@ -1,9 +1,9 @@
 # load3d-rs
 
-A reader of 3D files in Rust alone: FBX, binary and text, of versions 3.0 to 7.7; Wavefront `.obj` and `.mtl`. A load
-gives the file's scene: its nodes and their transforms, meshes, materials and textures, lights, cameras, skinning, blend
-shapes and animation, with ufbx's tools over it: animation evaluation and baking, CPU skinning, triangulation, topology,
-subdivision, NURBS and geometry caches (`.mc`, `.mcx`, `.pc2`).
+A reader of 3D files in Rust alone: FBX, binary and text, of versions 3.0 to 7.7; Wavefront `.obj` and `.mtl`; and
+3D Studio `.3ds`. A load gives the file's scene: its nodes and their transforms, meshes, materials and textures, lights,
+cameras, skinning, blend shapes and animation, with ufbx's tools over it: animation evaluation and baking, CPU skinning,
+triangulation, topology, subdivision, NURBS and geometry caches (`.mc`, `.mcx`, `.pc2`).
 
 ## Why
 

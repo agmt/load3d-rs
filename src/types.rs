@@ -524,6 +524,9 @@ pub struct Mesh {
     pub subdivision_evaluated: bool,
     pub subdivision_result: Option<Box<SubdivisionResult>>,
     pub from_tessellated_nurbs: bool,
+    /// Beyond ufbx: a 3DS object's mesh matrix (chunk 0x4160), its own axes and origin as it was built, in the file's
+    /// axes and unit; its vertices are stored already placed
+    pub mesh_matrix: Option<Matrix>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -1693,6 +1696,8 @@ pub enum FileFormat {
     Fbx,
     Obj,
     Mtl,
+    /// Beyond ufbx: 3D Studio (.3ds), behind the feature `format-3ds`
+    Tds,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -2169,6 +2174,10 @@ pub struct LoadOpts {
     pub obj_mtl_data: Vec<u8>,
     pub obj_unit_meters: Real,
     pub obj_axes: CoordinateAxes,
+    /// Beyond ufbx, as `obj_unit_meters` for a 3DS, which states no unit
+    pub tds_unit_meters: Real,
+    /// Beyond ufbx, as `obj_axes` for a 3DS; unset, 3D Studio's own: right-handed, z up, the front -y
+    pub tds_axes: CoordinateAxes,
 }
 
 impl std::fmt::Debug for LoadOpts {

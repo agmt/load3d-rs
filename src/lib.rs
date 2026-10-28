@@ -1,9 +1,9 @@
 //! A reader of 3D files in Rust: FBX, .obj and .mtl as ufbx 0.23.1 reads them, a port of it
-//! (<https://github.com/ufbx/ufbx>, MIT or Unlicense).
+//! (<https://github.com/ufbx/ufbx>, MIT or Unlicense), and 3D Studio (.3ds) files besides.
 #![forbid(unsafe_code)]
 // The FBX reader's fields stay in the types every format shares, unread without format-fbx, and a build of no format
 // leaves the readers' shared helpers unused
-#![cfg_attr(not(any(feature = "format-fbx", feature = "format-obj")), allow(dead_code))]
+#![cfg_attr(not(any(feature = "format-fbx", feature = "format-obj", feature = "format-3ds")), allow(dead_code))]
 
 pub(crate) mod api;
 pub(crate) mod bake;
@@ -33,6 +33,8 @@ pub mod props;
 pub(crate) mod read;
 pub(crate) mod search;
 pub(crate) mod subdivide;
+#[cfg(feature = "format-3ds")]
+pub(crate) mod tds;
 pub(crate) mod textures;
 pub(crate) mod topology;
 pub mod types;

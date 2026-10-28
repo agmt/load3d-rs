@@ -1174,6 +1174,13 @@ fn scene_settings_obj(settings: &mut SceneSettings, opts: &LoadOpts) {
     }
 }
 
+pub(crate) fn update_scene_settings_tds(ctx: &mut Context) {
+    let (settings, opts) = (&mut ctx.scene.settings, &ctx.opts);
+    settings.unit_meters = opts.tds_unit_meters;
+    settings.original_unit_meters = opts.tds_unit_meters;
+    settings.axes = if coordinate_axes_valid(opts.tds_axes) { opts.tds_axes } else { CoordinateAxes::RIGHT_HANDED_Z_UP };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

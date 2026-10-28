@@ -64,6 +64,11 @@ fn determine_format(p: &mut Parser, opts: &LoadOpts) -> Res<FileFormat> {
                 lookahead = usize::MAX;
             }
         }
+        // after ufbx's own formats, so that it reads every file it knows as it reads it
+        #[cfg(feature = "format-3ds")]
+        if format == FileFormat::Unknown && is_format(p.buffered(), FileFormat::Tds) {
+            format = FileFormat::Tds;
+        }
         p.resume_progress()?;
     }
 
@@ -76,6 +81,8 @@ fn determine_format(p: &mut Parser, opts: &LoadOpts) -> Res<FileFormat> {
             format = FileFormat::Obj;
         } else if match_pattern(ext, "\\c\\.mtl") {
             format = FileFormat::Mtl;
+        } else if cfg!(feature = "format-3ds") && match_pattern(ext, "\\c\\.3ds") {
+            format = FileFormat::Tds;
         }
     }
 
@@ -420,6 +427,12 @@ impl<'a> Context<'a> {
                 #[cfg(not(feature = "format-obj"))]
                 return Err(Error::new("Feature disabled").set_err_info("format-obj"));
             }
+            FileFormat::Tds => {
+                #[cfg(feature = "format-3ds")]
+                crate::tds::tds_load(self)?;
+                #[cfg(not(feature = "format-3ds"))]
+                return Err(Error::new("Feature disabled").set_err_info("format-3ds"));
+            }
             FileFormat::Unknown => {}
         }
 
@@ -429,6 +442,9 @@ impl<'a> Context<'a> {
         crate::update::update_scene_settings(&mut self.scene.settings);
         if self.scene.metadata.file_format == FileFormat::Obj {
             crate::update::update_scene_settings_obj(self);
+        }
+        if self.scene.metadata.file_format == FileFormat::Tds {
+            crate::update::update_scene_settings_tds(self);
         }
 
         if coordinate_axes_valid(self.opts.target_axes) {
@@ -951,6 +967,21 @@ mod tests {
         let opts = LoadOpts { filename: "a.obj".into(), ..LoadOpts::default() };
         let e = load_memory(b"v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n", &opts).unwrap_err();
         assert_eq!((e.kind, e.description.as_str(), e.info.as_str()), (ErrorType::FeatureDisabled, "Feature disabled", "format-obj"));
+    }
+}
+
+#[cfg(all(test, not(feature = "format-3ds")))]
+mod tds_tests {
+    use super::*;
+
+    #[test]
+    fn a_3ds_file_is_not_known_without_its_feature() {
+        let main = [0x4D, 0x4D, 6, 0, 0, 0];
+        let by_name = LoadOpts { filename: "boat.3ds".into(), ..LoadOpts::default() };
+        assert_eq!(load_memory(&main, &by_name).unwrap_err().kind, ErrorType::UnrecognizedFileFormat);
+        let told = LoadOpts { file_format: FileFormat::Tds, ..LoadOpts::default() };
+        let e = load_memory(&main, &told).unwrap_err();
+        assert_eq!((e.kind, e.info.as_str()), (ErrorType::FeatureDisabled, "format-3ds"));
     }
 }
 

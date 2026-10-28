@@ -422,7 +422,7 @@ impl<'a> Parser<'a> {
     }
 
     /// `yield_size` is left as it is
-    #[cfg(feature = "format-obj")]
+    #[cfg(any(feature = "format-obj", feature = "format-3ds"))]
     pub fn take_buffered(&mut self, size: usize) {
         self.pos += size;
         self.io.data_size -= size;

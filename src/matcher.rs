@@ -240,6 +240,7 @@ pub(crate) fn is_format(data: &[u8], format: crate::types::FileFormat) -> bool {
                 }
             }
         }
+        FileFormat::Tds => return data.len() >= 6 && data[..2] == [0x4D, 0x4D],
         _ => {}
     }
     false
