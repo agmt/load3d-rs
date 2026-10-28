@@ -1,4 +1,3 @@
-use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -6,15 +5,9 @@ use fbx_oracle::scene::rt::Cx;
 use fbx_oracle::{compare_scenes, convert_scene};
 use load3d as f;
 
-fn corpus() -> Option<PathBuf> {
-    match std::env::var_os("FBX_ORACLE_CORPUS").map(PathBuf::from) {
-        Some(d) if d.is_dir() => Some(d),
-        _ => {
-            // straight to stderr: the test harness captures only the print macros
-            let _ = writeln!(std::io::stderr(), "skipped: set FBX_ORACLE_CORPUS to the data folder of the ufbx repository to run this test");
-            None
-        }
-    }
+fn corpus() -> PathBuf {
+    let dir = std::env::var_os("FBX_ORACLE_CORPUS").or_else(|| std::env::var_os("UFBX_DATA")).map(PathBuf::from);
+    dir.filter(|d| d.is_dir()).expect("FBX_ORACLE_CORPUS or UFBX_DATA names ufbx's data/ (git clone --branch v0.23.1 https://github.com/ufbx/ufbx)")
 }
 
 fn scenes(dir: &std::path::Path) -> Vec<(String, ufbx::SceneRoot)> {
@@ -231,7 +224,7 @@ const MUTATIONS: &[Mutation] = &[
 
 #[test]
 fn converted_scenes_compare_equal() {
-    let Some(dir) = corpus() else { return };
+    let dir = corpus();
     let all = scenes(&dir);
     assert!(all.len() > 500, "{} scenes loaded", all.len());
     for (name, c) in &all {
@@ -243,7 +236,7 @@ fn converted_scenes_compare_equal() {
 
 #[test]
 fn every_change_is_found_at_its_path() {
-    let Some(dir) = corpus() else { return };
+    let dir = corpus();
     let all = scenes(&dir);
     let mut missed = Vec::new();
     for (what, mutate) in MUTATIONS {
@@ -294,7 +287,7 @@ fn values_compare_bit_for_bit_and_nans_alike() {
 
 #[test]
 fn private_fields_are_read_at_their_offsets() {
-    let Some(dir) = corpus() else { return };
+    let dir = corpus();
     let mut props = 0;
     let mut anim_props = 0;
     for (name, c) in scenes(&dir) {

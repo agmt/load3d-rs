@@ -26,4 +26,7 @@ The browser build needs its target, once:
 browser's `wasm32-unknown-unknown`.
 
 This repository holds no 3D file. The checks above take ufbx's from its public repository, cloned beside this one as
-`../ufbx`.
+`../ufbx`. `cargo test` needs no clone: the crate's tests write their files in code, and the three that read ufbx's are
+ignored until asked for, with the long test of decimals:
+
+    UFBX_DATA=../ufbx/data cargo test --release --lib -- --ignored

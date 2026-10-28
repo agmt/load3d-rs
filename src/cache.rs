@@ -1132,15 +1132,11 @@ mod tests {
         assert_eq!(times.len(), 7);
     }
 
-    fn corpus(rel: &str) -> Option<String> {
-        let root = std::env::var("UFBX_DATA").unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/../../../ext/ufbx/data").to_string());
+    fn corpus(rel: &str) -> String {
+        let root = std::env::var("UFBX_DATA").expect("UFBX_DATA names ufbx's data/ (TESTING.md)");
         let path = format!("{root}/{rel}");
-        if std::path::Path::new(&path).exists() {
-            Some(path)
-        } else {
-            eprintln!("skipped: no {path}");
-            None
-        }
+        assert!(std::path::Path::new(&path).exists(), "no {path}");
+        path
     }
 
     fn disk() -> GeometryCacheOpts {
@@ -1152,6 +1148,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "reads ufbx's data/: UFBX_DATA"]
     fn the_corpus_sine_caches_follow_their_sine() {
         for (rel, begin, end, threshold) in [
             ("caches/sine_mcmf_undersample/cache.xml", 1.0 / 24.0, 29.0 / 24.0, 0.04),
@@ -1159,7 +1156,7 @@ mod tests {
             ("caches/sine_mxmd_oversample/cache.xml", 11.0 / 24.0, 19.0 / 24.0, 0.003),
             ("caches/sine_mxsf_regular/cache.xml", 1.0 / 24.0, 29.0 / 24.0, 0.008),
         ] {
-            let Some(path) = corpus(rel) else { return };
+            let path = corpus(rel);
             let cache = load_geometry_cache(&path, &disk()).unwrap();
             assert_eq!(cache.channels.len(), 2);
             assert!(cache.channels.iter().all(|c| c.interpretation == CacheInterpretation::VertexPosition));
@@ -1181,8 +1178,9 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "reads ufbx's data/: UFBX_DATA"]
     fn the_corpus_xml_parse_case_decodes_entities_and_cdata() {
-        let Some(path) = corpus("caches/sine_xml_parse/cache.xml") else { return };
+        let path = corpus("caches/sine_xml_parse/cache.xml");
         let cache = load_geometry_cache(&path, &disk()).unwrap();
         let ex0 = "cdata! \"'&<><--&lt;&#x61;<tag></tag>-->!CDATA[]>aβカ😂]]";
         let ex1 = "\"'&<>aaaβββカカカ😂😂😂";
@@ -1190,15 +1188,16 @@ mod tests {
         let names: Vec<(&str, CacheInterpretation)> = cache.channels.iter().map(|c| (c.interpretation_name.as_str(), c.interpretation)).collect();
         assert_eq!(names, [("<!--\"positions\"-->", CacheInterpretation::Unknown), ("<![CDATA[<positions>]]>", CacheInterpretation::Unknown)]);
 
-        let Some(path) = corpus("cache_xml_depth.xml") else { return };
+        let path = corpus("cache_xml_depth.xml");
         assert_eq!(load_geometry_cache(&path, &disk()).unwrap_err().kind, ErrorType::Unknown);
-        let Some(path) = corpus("caches/indirect_xml_fail/cache.xml") else { return };
+        let path = corpus("caches/indirect_xml_fail/cache.xml");
         assert!(load_geometry_cache(&path, &disk()).is_err());
     }
 
     #[test]
+    #[ignore = "reads ufbx's data/: UFBX_DATA"]
     fn the_corpus_point_cache_reads_every_vertex() {
-        let Some(path) = corpus("max_cache_box_7500_binary_fpc/max_cache_box.pc2") else { return };
+        let path = corpus("max_cache_box_7500_binary_fpc/max_cache_box.pc2");
         let cache = load_geometry_cache(&path, &disk()).unwrap();
         assert_eq!(cache.frames.len(), 11);
         for frame in &cache.frames {
