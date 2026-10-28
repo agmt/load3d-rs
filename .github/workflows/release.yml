@@ -1,0 +1,41 @@
+# crates.io's trusted publishing: no stored token; this file's name and the environment `release` are what it trusts
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: The tag names Cargo.toml's version
+        id: version
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "load3d") | .version')
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME, Cargo.toml $version"; exit 1
+          fi
+          # a crate's first version goes up by hand with a token, before its tag is pushed
+          code=$(curl -s -o /dev/null -w '%{http_code}' -A 'load3d release (github.com/agmt/load3d-rs)' \
+            "https://crates.io/api/v1/crates/load3d/$version")
+          echo "published=$([ "$code" = 200 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - uses: rust-lang/crates-io-auth-action@v1
+        if: steps.version.outputs.published == 'false'
+        id: auth
+      - if: steps.version.outputs.published == 'false'
+        run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}

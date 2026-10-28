@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+  # release.yml publishes only a commit these jobs passed
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup target add wasm32-unknown-unknown
+      - run: ./test.sh
+
+  viewer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup target add wasm32-unknown-unknown
+      - run: examples/viewer/test.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: viewer
+          path: examples/viewer/target/site
+          retention-days: 30
