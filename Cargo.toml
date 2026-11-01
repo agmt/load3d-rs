@@ -22,6 +22,8 @@ geometry-cache = []
 skinning-evaluation = []
 # beyond ufbx: FEATURES.md, "The short way in"
 flatten = []
+# ufbx-rust's API over this crate, `load3d::compat`: all of ufbx's formats on, as that crate always has them
+ufbx-compat = ["format-fbx", "format-obj", "geometry-cache", "skinning-evaluation"]
 
 [[example]]
 name = "flatten"

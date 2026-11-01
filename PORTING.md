@@ -36,4 +36,4 @@ That is so for
 A C function that Rust writes inline, as a comparison passed to a sort, is named by a line comment above that code:
 `` // `ufbxi_less_external_file` in ufbx.c ``. A function that only stands in for C code it does not port says what it
 imitates: `` /// Like `ufbxi_stdio_read` in ufbx.c ``. A function with no C twin, as a constructor or an accessor, takes
-a Rust name and no such comment. A comment that names a C struct or table names its file the same way.
+a Rust name and no such comment. A comment that names a C struct or table names its file the same way. `src/compat/` takes ufbx-rust's names.

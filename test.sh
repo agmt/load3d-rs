@@ -4,6 +4,7 @@ cd "$(dirname "$0")"
 
 cargo test --locked --features flatten
 cargo test --locked --no-default-features
+cargo test --locked --features ufbx-compat --lib
 # a format's code compiled without its feature would be unused
 for f in format-fbx format-obj format-3ds; do
     RUSTFLAGS="-D warnings" cargo build --locked --no-default-features --features "$f"

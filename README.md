@@ -10,12 +10,13 @@ triangulation, topology, subdivision, NURBS and geometry caches (`.mc`, `.mcx`, 
 [ufbx](https://github.com/ufbx/ufbx) is a C library that reads FBX and `.obj` files, tested on its own collection of
 files exported by the modelling programs. Rust reaches it through the [`ufbx`](https://crates.io/crates/ufbx) crate,
 which compiles its C and calls it through `unsafe` code. load3d is ufbx 0.23.1 ported whole to Rust, function by
-function under ufbx's names, with no C and no `unsafe`:
+function under ufbx's names, with no C, and no `unsafe` outside the optional layer of the `ufbx` crate's API:
 
 - a program needs no C compiler, and builds for the browser's `wasm32-unknown-unknown` as for any other target;
 - a load gives ufbx's scene, warnings and errors bit for bit, checked against ufbx's C over ufbx's own test files
   ([TESTING.md](TESTING.md)), so ufbx's documentation holds for it ([PORTING.md](PORTING.md) says where Rust differs);
-- each format is a feature, so that a build carries only the readers it needs ([FEATURES.md](FEATURES.md)).
+- each format is a feature, so that a build carries only the readers it needs, and a program written for the `ufbx`
+  crate builds on this one ([FEATURES.md](FEATURES.md)).
 
 ## Using it
 

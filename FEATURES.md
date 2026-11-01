@@ -29,6 +29,19 @@ These are not ufbx's, so they keep no name of its, no oracle holds them to it, a
 - `detect_format` tells a file's format by its content, in the order a load tries them.
 - `SceneSettings::stated_unit` is the unit the file itself states, where `unit_meters` may be ufbx's default.
 
+## ufbx-rust's API
+
+A program written for the [`ufbx`](https://crates.io/crates/ufbx) crate builds on this one with the feature
+`ufbx-compat`, off by default, and one line, `use load3d::compat as ufbx;`. `src/compat/` holds ufbx-rust's types,
+functions and signatures. All of the crate's `unsafe` is there: in the pointers between its elements, in callbacks that
+borrow, and in the C function pointers and `FILE *` that ufbx-rust's API names. The compiler refuses it anywhere else,
+and anywhere at all in a build without the feature.
+
+What has no meaning here is accepted and does nothing: the allocators and the thread pool. An allocator's
+`memory_limit` is held against the call's finished result, not against each allocation. A stream is read to its end, so
+its `skip` is never called. ufbx-rust's `*_raw` functions and `Raw*Opts`, C's own calling convention, are left out. A 3D
+Studio file, which ufbx-rust has no name for, reads as `FileFormat::Unknown`.
+
 ## 3D Studio files, beyond ufbx
 
 A file starting with the main chunk's id (`0x4D4D`) and taken for none of ufbx's formats, or named `.3ds`, loads as

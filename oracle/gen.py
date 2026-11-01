@@ -578,7 +578,8 @@ class Gen:
             return f'k.dom_path(rt::raw_ptr({a}))'
         raise ValueError(rule)
 
-    def gen_struct(self, cname):
+    def plan_struct(self, cname):
+        """how each field of a ufbx struct pairs with the port's, or None for a struct written by hand"""
         c, p = self.c, self.p
         pt = self.port_type_of[cname]
         cfields = c.fields(cname)
@@ -588,7 +589,7 @@ class Gen:
             if [f for f, _, _ in cfields] != cf or pfields != pf:
                 sys.exit(f'gen.py: {cname} changed: ufbx {[f for f, _, _ in cfields]} port {pfields}; update HANDWRITTEN and src/scene/special.rs')
             self.mappings.append((cname, '(all fields)', f'compared by hand in src/scene/special.rs: {why}'))
-            return
+            return None
         maps = p.maps.get(pt[1])
         feat = FEATURE_ARRAYS.get(cname)
         if maps:
@@ -607,7 +608,7 @@ class Gen:
             sf = p.struct_fields(pt)
             if sf is None:
                 self.missing_structs.append(cname)
-                return
+                return None
             pf = {}
             for f, t, pub in sf:
                 if pub:
@@ -683,7 +684,13 @@ class Gen:
         for pfield in pf:
             if pfield not in used:
                 self.port_only.append((cname, pfield))
+        return cfields, pt, pf, plan, maps, feat
 
+    def gen_struct(self, cname):
+        planned = self.plan_struct(cname)
+        if planned is None:
+            return
+        cfields, pt, pf, plan, maps, feat = planned
         cty = f'u::{cname}'
         pty = self.rust_p_type(pt)
         out = self.out
