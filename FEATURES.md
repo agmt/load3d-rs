@@ -14,9 +14,17 @@ load3d = { version = "0.1", default-features = false, features = ["format-fbx", 
 
 ## The short way in
 
+Most programs want a file's triangles where the file places them, whatever its format. `flatten` gives one `FlatMesh`
+for each node that shows a mesh: the mesh's positions placed, its faces cut into triangles, each triangle's face and
+material, and the node and the mesh it came from, so that their names, animation, normals and UVs stay reachable
+(`examples/flatten.rs`).
+
 These are not ufbx's, so they keep no name of its, no oracle holds them to it, and they come with the feature
 `flatten`, off by default:
 
+- `flatten` cuts faces by `triangulate_face`; `flatten_with` takes a program's own cut. Under a mirroring node two
+  corners are swapped, so that a triangle faces the way it did. `FlatMesh::material_groups` gives each material's
+  triangles.
 - `Material::diffuse` is the plain colour, in any format.
 - `detect_format` tells a file's format by its content, in the order a load tries them.
 - `SceneSettings::stated_unit` is the unit the file itself states, where `unit_meters` may be ufbx's default.

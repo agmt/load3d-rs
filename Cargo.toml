@@ -23,5 +23,9 @@ skinning-evaluation = []
 # beyond ufbx: FEATURES.md, "The short way in"
 flatten = []
 
+[[example]]
+name = "flatten"
+required-features = ["flatten"]
+
 [package.metadata.docs.rs]
 features = ["flatten"]

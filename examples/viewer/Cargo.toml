@@ -10,7 +10,7 @@ license = "MIT"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-load3d = { path = "../.." }
+load3d = { path = "../..", features = ["flatten"] }
 
 # for the browser, so for size, as a page that reads files builds it
 [profile.release]

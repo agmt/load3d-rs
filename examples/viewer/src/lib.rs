@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-use load3d::{CoordinateAxes, LoadOpts, Scene, Vec3, load_memory, transform_position, triangulate_face};
+use load3d::{CoordinateAxes, LoadOpts, Scene, flatten, load_memory};
 
 const GREY: [f32; 3] = [0.7, 0.7, 0.7];
 
@@ -25,26 +25,14 @@ pub fn draw(bytes: &[u8]) -> Drawing {
 
 fn triangles(scene: &Scene) -> Drawing {
     let mut out = Drawing { metres: scene.settings.unit_meters > 0.0, ..Drawing::default() };
-    for mesh in &scene.meshes {
-        let mut corners = vec![0; 3 * mesh.max_face_triangles];
-        for &instance in &mesh.element.instances {
-            let node = &scene.nodes[instance];
-            // a node's own materials stand in for its mesh's where it has them, as ufbx's instances do
-            let materials = if node.materials.is_empty() { &mesh.materials } else { &node.materials };
-            for (f, &face) in mesh.faces.iter().enumerate() {
-                let color = mesh.face_material.get(f).and_then(|&m| materials.get(m as usize).copied().flatten()).map_or(GREY, |m| {
-                    let d = scene.materials[m].fbx.diffuse_color();
-                    if d.has_value { [d.value_vec4.x as f32, d.value_vec4.y as f32, d.value_vec4.z as f32] } else { GREY }
-                });
-                let n = triangulate_face(&mut corners, mesh, face) as usize;
-                for &c in &corners[..3 * n] {
-                    let p: Vec3 = transform_position(&node.geometry_to_world, mesh.vertices[mesh.vertex_indices[c as usize] as usize]);
-                    out.positions.extend([p.x as f32, p.y as f32, p.z as f32]);
-                }
-                for _ in 0..n {
-                    out.colors.extend(color);
-                }
+    for part in flatten(scene) {
+        for (triangle, material) in part.triangles.iter().zip(&part.materials) {
+            let color = material.and_then(|m| scene.materials[m].diffuse()).map_or(GREY, |d| [d.x as f32, d.y as f32, d.z as f32]);
+            for &corner in triangle {
+                let p = part.positions[corner as usize];
+                out.positions.extend([p.x as f32, p.y as f32, p.z as f32]);
             }
+            out.colors.extend(color);
         }
     }
     let warnings: Vec<String> = scene.metadata.warnings.iter().map(|w| w.description.clone()).collect();

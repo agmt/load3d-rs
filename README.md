@@ -21,4 +21,6 @@ function under ufbx's names, with no C and no `unsafe`:
 
 - [`examples/load.rs`](examples/load.rs) loads a file and lists its meshes, placed in the world:
   `cargo run --example load -- model.fbx`;
+- [`examples/flatten.rs`](examples/flatten.rs) gives each mesh's triangles and their materials, whatever the format:
+  `cargo run --example flatten --features flatten -- model.fbx`;
 - [`examples/viewer`](examples/viewer) draws a file in the browser, at https://agmt.github.io/load3d-rs/.

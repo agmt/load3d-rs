@@ -63,7 +63,7 @@ pub use math::*;
 pub use nurbs::{evaluate_nurbs_basis, evaluate_nurbs_curve, evaluate_nurbs_surface, tessellate_nurbs_curve, tessellate_nurbs_surface};
 pub use paths::default_open_file;
 #[cfg(feature = "flatten")]
-pub use simple::detect_format;
+pub use simple::{FlatMesh, detect_format, flatten, flatten_with};
 pub use subdivide::*;
 pub use topology::*;
 pub use types::*;
