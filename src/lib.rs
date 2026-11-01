@@ -32,6 +32,8 @@ pub mod props;
 #[cfg(feature = "format-fbx")]
 pub(crate) mod read;
 pub(crate) mod search;
+#[cfg(feature = "flatten")]
+pub(crate) mod simple;
 pub(crate) mod subdivide;
 #[cfg(feature = "format-3ds")]
 pub(crate) mod tds;

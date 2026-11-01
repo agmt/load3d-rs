@@ -20,3 +20,8 @@ format-fbx = []
 format-3ds = []
 geometry-cache = []
 skinning-evaluation = []
+# beyond ufbx: FEATURES.md, "The short way in"
+flatten = []
+
+[package.metadata.docs.rs]
+features = ["flatten"]

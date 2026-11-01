@@ -5,12 +5,19 @@ Each format is a feature, so that a build carries only the readers it needs. `fo
 ufbx always builds, is a feature here too, so that a build that reads only `.obj` or `.3ds` files leaves its reader
 out. A load that needs one turned off fails with "Feature disabled", its info the feature's name.
 `format-3ds`, on by default too, is beyond ufbx: turned off, no file is taken for a 3DS, and the crate reads every file
-as ufbx does.
+as ufbx does. `flatten`, off by default, holds "The short way in".
 
 ```toml
 # 3D Studio and FBX files only
 load3d = { version = "0.1", default-features = false, features = ["format-fbx", "format-3ds"] }
 ```
+
+## The short way in
+
+These are not ufbx's, so they keep no name of its, no oracle holds them to it, and they come with the feature
+`flatten`, off by default:
+
+- `Material::diffuse` is the plain colour, in any format.
 
 ## 3D Studio files, beyond ufbx
 
