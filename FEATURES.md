@@ -18,6 +18,7 @@ These are not ufbx's, so they keep no name of its, no oracle holds them to it, a
 `flatten`, off by default:
 
 - `Material::diffuse` is the plain colour, in any format.
+- `detect_format` tells a file's format by its content, in the order a load tries them.
 
 ## 3D Studio files, beyond ufbx
 

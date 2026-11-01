@@ -62,6 +62,8 @@ pub use load::{load_file, load_memory, load_stream, load_stream_prefix};
 pub use math::*;
 pub use nurbs::{evaluate_nurbs_basis, evaluate_nurbs_curve, evaluate_nurbs_surface, tessellate_nurbs_curve, tessellate_nurbs_surface};
 pub use paths::default_open_file;
+#[cfg(feature = "flatten")]
+pub use simple::detect_format;
 pub use subdivide::*;
 pub use topology::*;
 pub use types::*;
