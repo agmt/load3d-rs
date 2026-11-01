@@ -19,6 +19,7 @@ These are not ufbx's, so they keep no name of its, no oracle holds them to it, a
 
 - `Material::diffuse` is the plain colour, in any format.
 - `detect_format` tells a file's format by its content, in the order a load tries them.
+- `SceneSettings::stated_unit` is the unit the file itself states, where `unit_meters` may be ufbx's default.
 
 ## 3D Studio files, beyond ufbx
 

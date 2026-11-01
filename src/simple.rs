@@ -1,7 +1,7 @@
 //! Kept out of `types.rs`, which the oracle pairs with ufbx's.
 
 use crate::matcher::is_format;
-use crate::{FileFormat, Material, Vec3};
+use crate::{FileFormat, Material, Real, SceneSettings, Vec3};
 
 /// The format these bytes are taken for by their content alone, in the order a load tries them
 pub fn detect_format(data: &[u8]) -> FileFormat {
@@ -29,9 +29,29 @@ impl Material {
     }
 }
 
+impl SceneSettings {
+    /// Metres in one of the file's units where it states one; `unit_meters` is otherwise ufbx's default or nothing
+    pub fn stated_unit(&self) -> Option<Real> {
+        self.props.find_own("UnitScaleFactor").map(|_| self.unit_meters)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "format-fbx")]
+    fn fbx(settings: &str, objects: &str, connections: &str) -> crate::Scene {
+        let text = format!(
+            "; FBX 7.4.0 project file\nFBXHeaderExtension:  {{\n    FBXVersion: 7400\n}}\nGlobalSettings:  {{\n    Properties70:  {{\n{settings}\n    }}\n}}\nObjects:  {{\n{objects}\n}}\nConnections:  {{\n{connections}\n}}\n"
+        );
+        crate::load_memory(text.as_bytes(), &crate::LoadOpts::default()).unwrap()
+    }
+
+    #[cfg(feature = "format-fbx")]
+    fn model(id: i64, name: &str, property: &str) -> String {
+        format!("    Model: {id}, \"Model::{name}\", \"Mesh\" {{\n        Properties70:  {{\n            {property}\n        }}\n    }}")
+    }
 
     #[test]
     fn a_format_is_told_by_its_content() {
@@ -61,5 +81,25 @@ mod tests {
         let of = |name: &str| scene.materials.iter().find(|m| m.element.name == name).unwrap().diffuse();
         assert_eq!(of("paint"), Some(Vec3::new(1.0, 0.5, 0.0)));
         assert_eq!(of("bare"), None);
+    }
+
+    #[test]
+    #[cfg(feature = "format-fbx")]
+    fn the_stated_unit_is_the_files_whatever_the_load_turned_it_into() {
+        let stated = "        P: \"UnitScaleFactor\", \"double\", \"Number\", \"\", 100";
+        let scene = fbx(stated, &model(2, "empty", ""), "    C: \"OO\",2,0");
+        assert_eq!(scene.settings.stated_unit(), Some(1.0));
+        let unstated = fbx("", &model(2, "empty", ""), "    C: \"OO\",2,0");
+        assert_eq!(unstated.settings.stated_unit(), None);
+        let text = format!("; FBX 7.4.0 project file\nFBXHeaderExtension:  {{\n    FBXVersion: 7400\n}}\nGlobalSettings:  {{\n    Properties70:  {{\n{stated}\n    }}\n}}\n");
+        let turned = crate::load_memory(text.as_bytes(), &crate::LoadOpts { target_unit_meters: 0.001, ..crate::LoadOpts::default() }).unwrap();
+        assert_eq!(turned.settings.stated_unit(), Some(1.0));
+    }
+
+    #[test]
+    #[cfg(feature = "format-obj")]
+    fn an_obj_states_no_unit() {
+        let scene = crate::load_memory(b"v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n", &crate::LoadOpts::default()).unwrap();
+        assert_eq!(scene.settings.stated_unit(), None);
     }
 }
