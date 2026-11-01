@@ -38,3 +38,7 @@ ignored until asked for, with the long test of decimals:
 each format, which the test writes itself; the page it builds opens from any static server:
 
     examples/viewer/test.sh && python3 -m http.server -d examples/viewer/target/site
+
+`./test-all.sh` runs everything: `test.sh` and `examples/viewer/test.sh`, then the crate's ignored tests and the
+oracle's checks above. `UFBX_PATH` names ufbx's clone, `../ufbx` unless set; a missing one is cloned at the oracle's
+release.
