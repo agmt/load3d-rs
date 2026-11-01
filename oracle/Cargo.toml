@@ -7,7 +7,7 @@ description = "load3d compared with ufbx, the C library it ports, on ufbx's own 
 
 [dependencies]
 # without `format-3ds`, which ufbx has not: a file only it would read must fail here as it fails in ufbx
-load3d = { path = "..", default-features = false, features = ["format-fbx", "format-obj", "geometry-cache", "skinning-evaluation"] }
+load3d = { path = "..", default-features = false, features = ["format-fbx", "format-obj", "geometry-cache", "skinning-evaluation", "ufbx-compat"] }
 ufbx = "0.11"
 
 [profile.dev]

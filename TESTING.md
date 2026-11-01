@@ -34,11 +34,15 @@ ignored until asked for, with the long test of decimals:
 
     UFBX_DATA=../ufbx/data cargo test --release --lib -- --ignored
 
+`oracle/ufbx-compat` runs ufbx-rust's own tests on `load3d::compat`, unchanged and not copied, from its clone beside
+this one, but for `blender_default_custom_stream_skip`, which asks a stream to skip. The oracle's section `compat`
+compares the layer with ufbx-rust itself, field by field, over ufbx's files.
+
 `examples/viewer/test.sh` builds the viewer for the browser and opens it in a headless Chromium in Docker on a file of
 each format, which the test writes itself; the page it builds opens from any static server:
 
     examples/viewer/test.sh && python3 -m http.server -d examples/viewer/target/site
 
-`./test-all.sh` runs everything: `test.sh` and `examples/viewer/test.sh`, then the crate's ignored tests and the
-oracle's checks above. `UFBX_PATH` names ufbx's clone, `../ufbx` unless set; a missing one is cloned at the oracle's
-release.
+`./test-all.sh` runs everything: `test.sh` and `examples/viewer/test.sh`, then the crate's ignored tests, the oracle's
+checks above and ufbx-rust's tests. `UFBX_PATH` and `UFBX_RUST_PATH` name the clones, `../ufbx` and `../ufbx-rust`
+unless set; a missing one is cloned at the release the oracle compares with.

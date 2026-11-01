@@ -1,0 +1,16 @@
+# ufbx-rust's own tests, unchanged and not copied: a crate named `ufbx` that is this one's compatibility layer, with
+# `tests` a link to the tests of ufbx-rust's clone at ufbx-rust.commit (test-all.sh makes it).
+[package]
+name = "ufbx"
+version = "0.0.0"
+edition = "2018"
+publish = false
+
+[workspace]
+
+[dependencies]
+load3d = { path = "../..", features = ["ufbx-compat"] }
+
+[dev-dependencies]
+panic-message = "0.3.0"
+libc = "0.2"

@@ -19,6 +19,7 @@ use runner::Section;
 pub const SECTIONS: &[Section] = &[
     scene::SCENE,
     scene::MUTANTS,
+    scene::compat::COMPAT,
     io::IO,
     inflate::INFLATE,
     api::API,

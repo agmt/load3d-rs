@@ -20,4 +20,11 @@ fn main() {
         .status()
         .expect("python3 runs gen.py");
     assert!(status.success(), "gen.py failed");
+    println!("cargo:rerun-if-changed=gen_compat.py");
+    let status = Command::new("python3")
+        .args(["-I", &format!("{dir}/gen_compat.py"), "--cmp-out", &format!("{out}/generated_compat_cmp.rs"), "--src", &port_src])
+        .args(["--cargo", &cargo, "--manifest", &format!("{dir}/Cargo.toml")])
+        .status()
+        .expect("python3 runs gen_compat.py");
+    assert!(status.success(), "gen_compat.py failed");
 }

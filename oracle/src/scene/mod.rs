@@ -12,6 +12,8 @@ pub mod generated {
 use std::collections::{BTreeMap, HashMap};
 
 use crate::common::{Rng, both};
+pub mod compat;
+
 use crate::runner::{Args, Child, Job, Section, Status, Tally, corpus_jobs};
 
 #[derive(Debug, Default)]
