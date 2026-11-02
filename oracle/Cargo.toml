@@ -10,6 +10,10 @@ description = "load3d compared with ufbx, the C library it ports, on ufbx's own 
 load3d = { path = "..", default-features = false, features = ["format-fbx", "format-obj", "geometry-cache", "skinning-evaluation", "ufbx-compat"] }
 ufbx = "0.11"
 
+[[bench]]
+name = "load"
+harness = false
+
 [profile.dev]
 opt-level = 1
 

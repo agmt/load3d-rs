@@ -46,3 +46,8 @@ each format, which the test writes itself; the page it builds opens from any sta
 `./test-all.sh` runs everything: `test.sh` and `examples/viewer/test.sh`, then the crate's ignored tests, the oracle's
 checks above and ufbx-rust's tests. `UFBX_PATH` and `UFBX_RUST_PATH` name the clones, `../ufbx` and `../ufbx-rust`
 unless set; a missing one is cloned at the release the oracle compares with.
+
+README's speed against ufbx is the output of `oracle/benches/load.rs`, whose first lines give its options;
+`test-all.sh` only builds it, so that it keeps compiling:
+
+    cd oracle && cargo bench --bench load -- ../../ufbx/data

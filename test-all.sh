@@ -28,6 +28,7 @@ cd oracle
 cargo test --release --locked --lib --bins
 cargo run --release --locked -- all --corpus "$UFBX_DATA"
 cargo test --release --locked --test '*'
+cargo bench --locked --bench load --no-run
 python3 -I gen_compat.py --check
 
 # ufbx-rust's tests as they are; this crate reads a stream to its end, so that test's `skip` is never called

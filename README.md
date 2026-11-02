@@ -18,6 +18,9 @@ function under ufbx's names, with no C, and no `unsafe` outside the optional lay
 - each format is a feature, so that a build carries only the readers it needs, and a program written for the `ufbx`
   crate builds on this one ([FEATURES.md](FEATURES.md)).
 
+It is slower than ufbx: over the 1,010 of ufbx's test files that both load, a load takes 1.6 times ufbx's time, 1.96 for
+binary FBX, 1.53 for text FBX and 1.22 for `.obj`.
+
 ## Using it
 
 - [`examples/load.rs`](examples/load.rs) loads a file and lists its meshes, placed in the world:
