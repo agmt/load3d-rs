@@ -5,6 +5,8 @@
 // The FBX reader's fields stay in the types every format shares, unread without format-fbx, and a build of no format
 // leaves the readers' shared helpers unused
 #![cfg_attr(not(any(feature = "format-fbx", feature = "format-obj", feature = "format-3ds")), allow(dead_code))]
+// The port keeps ufbx's loops index for index, to be read beside the C
+#![allow(clippy::needless_range_loop)]
 
 pub(crate) mod api;
 pub(crate) mod bake;

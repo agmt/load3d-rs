@@ -52,7 +52,7 @@ fn node(out: &mut Vec<u8>, name: &str, num_values: u32, values: &[u8], children:
 }
 
 fn string(s: &str) -> Vec<u8> {
-    [&[b'S'][..], &(s.len() as u32).to_le_bytes(), s.as_bytes()].concat()
+    [&b"S"[..], &(s.len() as u32).to_le_bytes(), s.as_bytes()].concat()
 }
 
 #[test]
@@ -60,10 +60,10 @@ fn an_array_of_four_billion_values_in_a_small_file_is_refused_unallocated() {
     let mut file = b"Kaydara FBX Binary  \x00\x1a\x00".to_vec();
     file.extend(7400u32.to_le_bytes());
     node(&mut file, "Objects", 0, &[], |out| {
-        let values = [&[b'L'][..], &1u64.to_le_bytes(), &string("a\x00\x01Geometry"), &string("Mesh")].concat();
+        let values = [&b"L"[..], &1u64.to_le_bytes(), &string("a\x00\x01Geometry"), &string("Mesh")].concat();
         node(out, "Geometry", 3, &values, |out| {
             // one double where the node says it holds four billion
-            node(out, "Vertices", u32::MAX - 15, &[&[b'D'][..], &1.0f64.to_le_bytes()].concat(), |_| {});
+            node(out, "Vertices", u32::MAX - 15, &[&b"D"[..], &1.0f64.to_le_bytes()].concat(), |_| {});
         });
     });
     assert!(load3d::load_memory(&file, &load3d::LoadOpts::default()).is_err());

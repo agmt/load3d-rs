@@ -2,9 +2,7 @@ use crate::error::Res;
 use crate::types::*;
 
 pub(crate) fn update_vertex_first_index(mesh: &mut Mesh) {
-    for v in &mut mesh.vertex_first_index {
-        *v = NO_INDEX;
-    }
+    mesh.vertex_first_index.fill(NO_INDEX);
     let num_vertices = mesh.num_vertices as u32;
     for ix in 0..mesh.num_indices {
         let vx = mesh.vertex_indices[ix];

@@ -3,7 +3,14 @@
 use super::*;
 use crate as f;
 
-pub use crate::{ApertureMode, AspectMode, BakeStepHandling, CacheDataEncoding, CacheDataFormat, CacheFileFormat, CacheInterpretation, ConstraintAimUpType, ConstraintIkPoleType, ConstraintType, CoordinateAxis, DomValueType, ElementType, ErrorType, Exporter, ExtrapolationMode, GateFit, GeometryTransformHandling, IndexErrorHandling, InheritMode, InheritModeHandling, Interpolation, LightAreaShape, LightDecay, LightType, LodDisplay, MarkerType, MaterialFbxMap, MaterialFeature, MaterialPbrMap, MirrorAxis, NurbsTopology, OpenFileType, PivotHandling, ProjectionMode, PropType, RotationOrder, ShaderTextureType, SkinningMethod, SnapMode, SpaceConversion, SubdivisionBoundary, SubdivisionDisplayMode, TextureType, ThumbnailFormat, TimeProtocol, UnicodeErrorHandling, WarningType, WrapMode};
+pub use crate::{
+    ApertureMode, AspectMode, BakeStepHandling, CacheDataEncoding, CacheDataFormat, CacheFileFormat, CacheInterpretation, ConstraintAimUpType,
+    ConstraintIkPoleType, ConstraintType, CoordinateAxis, DomValueType, ElementType, ErrorType, Exporter, ExtrapolationMode, GateFit,
+    GeometryTransformHandling, IndexErrorHandling, InheritMode, InheritModeHandling, Interpolation, LightAreaShape, LightDecay, LightType, LodDisplay,
+    MarkerType, MaterialFbxMap, MaterialFeature, MaterialPbrMap, MirrorAxis, NurbsTopology, OpenFileType, PivotHandling, ProjectionMode, PropType,
+    RotationOrder, ShaderTextureType, SkinningMethod, SnapMode, SpaceConversion, SubdivisionBoundary, SubdivisionDisplayMode, TextureType, ThumbnailFormat,
+    TimeProtocol, UnicodeErrorHandling, WarningType, WrapMode,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 #[repr(u32)]
@@ -21,7 +28,11 @@ pub enum ApertureFormat {
     Dynavision = 10,
     Imax = 11,
 }
-impl Default for ApertureFormat { fn default() -> Self { Self::Custom } }
+impl Default for ApertureFormat {
+    fn default() -> Self {
+        Self::Custom
+    }
+}
 pub(crate) fn from_enum_ApertureFormat(p: f::ApertureFormat) -> ApertureFormat {
     #[allow(unreachable_patterns)]
     match p {
@@ -92,7 +103,11 @@ pub enum BlendMode {
     Luminosity = 29,
     Overlay = 30,
 }
-impl Default for BlendMode { fn default() -> Self { Self::Translucent } }
+impl Default for BlendMode {
+    fn default() -> Self {
+        Self::Translucent
+    }
+}
 pub(crate) fn from_enum_BlendMode(p: f::BlendMode) -> BlendMode {
     #[allow(unreachable_patterns)]
     match p {
@@ -174,7 +189,11 @@ pub enum FileFormat {
     Obj = 2,
     Mtl = 3,
 }
-impl Default for FileFormat { fn default() -> Self { Self::Unknown } }
+impl Default for FileFormat {
+    fn default() -> Self {
+        Self::Unknown
+    }
+}
 pub(crate) fn from_enum_FileFormat(p: f::FileFormat) -> FileFormat {
     #[allow(unreachable_patterns)]
     match p {
@@ -200,7 +219,11 @@ pub enum ProgressResult {
     Continue = 256,
     Cancel = 512,
 }
-impl Default for ProgressResult { fn default() -> Self { Self::Continue } }
+impl Default for ProgressResult {
+    fn default() -> Self {
+        Self::Continue
+    }
+}
 pub(crate) fn from_enum_ProgressResult(p: f::ProgressResult) -> ProgressResult {
     #[allow(unreachable_patterns)]
     match p {
@@ -233,7 +256,11 @@ pub enum ShaderType {
     BlenderPhong = 11,
     WavefrontMtl = 12,
 }
-impl Default for ShaderType { fn default() -> Self { Self::Unknown } }
+impl Default for ShaderType {
+    fn default() -> Self {
+        Self::Unknown
+    }
+}
 pub(crate) fn from_enum_ShaderType(p: f::ShaderType) -> ShaderType {
     #[allow(unreachable_patterns)]
     match p {
@@ -293,7 +320,11 @@ pub enum TimeMode {
     E72Fps = 16,
     E5994Fps = 17,
 }
-impl Default for TimeMode { fn default() -> Self { Self::Default } }
+impl Default for TimeMode {
+    fn default() -> Self {
+        Self::Default
+    }
+}
 pub(crate) fn from_enum_TimeMode(p: f::TimeMode) -> TimeMode {
     #[allow(unreachable_patterns)]
     match p {
@@ -352,7 +383,17 @@ impl BakedKeyFlags {
     pub const KEYFRAME: BakedKeyFlags = BakedKeyFlags(0x8);
     pub const REDUCED: BakedKeyFlags = BakedKeyFlags(0x10);
 }
-flags_impl!(BakedKeyFlags, [("NONE", BakedKeyFlags::NONE.0), ("STEP_LEFT", BakedKeyFlags::STEP_LEFT.0), ("STEP_RIGHT", BakedKeyFlags::STEP_RIGHT.0), ("STEP_KEY", BakedKeyFlags::STEP_KEY.0), ("KEYFRAME", BakedKeyFlags::KEYFRAME.0), ("REDUCED", BakedKeyFlags::REDUCED.0)]);
+flags_impl!(
+    BakedKeyFlags,
+    [
+        ("NONE", BakedKeyFlags::NONE.0),
+        ("STEP_LEFT", BakedKeyFlags::STEP_LEFT.0),
+        ("STEP_RIGHT", BakedKeyFlags::STEP_RIGHT.0),
+        ("STEP_KEY", BakedKeyFlags::STEP_KEY.0),
+        ("KEYFRAME", BakedKeyFlags::KEYFRAME.0),
+        ("REDUCED", BakedKeyFlags::REDUCED.0)
+    ]
+);
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
@@ -393,7 +434,36 @@ impl PropFlags {
     pub const VALUE_STR: PropFlags = PropFlags(0x2000000);
     pub const VALUE_BLOB: PropFlags = PropFlags(0x4000000);
 }
-flags_impl!(PropFlags, [("NONE", PropFlags::NONE.0), ("ANIMATABLE", PropFlags::ANIMATABLE.0), ("USER_DEFINED", PropFlags::USER_DEFINED.0), ("HIDDEN", PropFlags::HIDDEN.0), ("LOCK_X", PropFlags::LOCK_X.0), ("LOCK_Y", PropFlags::LOCK_Y.0), ("LOCK_Z", PropFlags::LOCK_Z.0), ("LOCK_W", PropFlags::LOCK_W.0), ("MUTE_X", PropFlags::MUTE_X.0), ("MUTE_Y", PropFlags::MUTE_Y.0), ("MUTE_Z", PropFlags::MUTE_Z.0), ("MUTE_W", PropFlags::MUTE_W.0), ("SYNTHETIC", PropFlags::SYNTHETIC.0), ("ANIMATED", PropFlags::ANIMATED.0), ("NOT_FOUND", PropFlags::NOT_FOUND.0), ("CONNECTED", PropFlags::CONNECTED.0), ("NO_VALUE", PropFlags::NO_VALUE.0), ("OVERRIDDEN", PropFlags::OVERRIDDEN.0), ("VALUE_REAL", PropFlags::VALUE_REAL.0), ("VALUE_VEC2", PropFlags::VALUE_VEC2.0), ("VALUE_VEC3", PropFlags::VALUE_VEC3.0), ("VALUE_VEC4", PropFlags::VALUE_VEC4.0), ("VALUE_INT", PropFlags::VALUE_INT.0), ("VALUE_STR", PropFlags::VALUE_STR.0), ("VALUE_BLOB", PropFlags::VALUE_BLOB.0)]);
+flags_impl!(
+    PropFlags,
+    [
+        ("NONE", PropFlags::NONE.0),
+        ("ANIMATABLE", PropFlags::ANIMATABLE.0),
+        ("USER_DEFINED", PropFlags::USER_DEFINED.0),
+        ("HIDDEN", PropFlags::HIDDEN.0),
+        ("LOCK_X", PropFlags::LOCK_X.0),
+        ("LOCK_Y", PropFlags::LOCK_Y.0),
+        ("LOCK_Z", PropFlags::LOCK_Z.0),
+        ("LOCK_W", PropFlags::LOCK_W.0),
+        ("MUTE_X", PropFlags::MUTE_X.0),
+        ("MUTE_Y", PropFlags::MUTE_Y.0),
+        ("MUTE_Z", PropFlags::MUTE_Z.0),
+        ("MUTE_W", PropFlags::MUTE_W.0),
+        ("SYNTHETIC", PropFlags::SYNTHETIC.0),
+        ("ANIMATED", PropFlags::ANIMATED.0),
+        ("NOT_FOUND", PropFlags::NOT_FOUND.0),
+        ("CONNECTED", PropFlags::CONNECTED.0),
+        ("NO_VALUE", PropFlags::NO_VALUE.0),
+        ("OVERRIDDEN", PropFlags::OVERRIDDEN.0),
+        ("VALUE_REAL", PropFlags::VALUE_REAL.0),
+        ("VALUE_VEC2", PropFlags::VALUE_VEC2.0),
+        ("VALUE_VEC3", PropFlags::VALUE_VEC3.0),
+        ("VALUE_VEC4", PropFlags::VALUE_VEC4.0),
+        ("VALUE_INT", PropFlags::VALUE_INT.0),
+        ("VALUE_STR", PropFlags::VALUE_STR.0),
+        ("VALUE_BLOB", PropFlags::VALUE_BLOB.0)
+    ]
+);
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
@@ -417,9 +487,24 @@ impl TransformFlags {
     pub const INCLUDE_SCALE: TransformFlags = TransformFlags(0x40);
     pub const NO_EXTRAPOLATION: TransformFlags = TransformFlags(0x80);
 }
-flags_impl!(TransformFlags, [("NONE", TransformFlags::NONE.0), ("IGNORE_SCALE_HELPER", TransformFlags::IGNORE_SCALE_HELPER.0), ("IGNORE_COMPONENTWISE_SCALE", TransformFlags::IGNORE_COMPONENTWISE_SCALE.0), ("EXPLICIT_INCLUDES", TransformFlags::EXPLICIT_INCLUDES.0), ("INCLUDE_TRANSLATION", TransformFlags::INCLUDE_TRANSLATION.0), ("INCLUDE_ROTATION", TransformFlags::INCLUDE_ROTATION.0), ("INCLUDE_SCALE", TransformFlags::INCLUDE_SCALE.0), ("NO_EXTRAPOLATION", TransformFlags::NO_EXTRAPOLATION.0)]);
+flags_impl!(
+    TransformFlags,
+    [
+        ("NONE", TransformFlags::NONE.0),
+        ("IGNORE_SCALE_HELPER", TransformFlags::IGNORE_SCALE_HELPER.0),
+        ("IGNORE_COMPONENTWISE_SCALE", TransformFlags::IGNORE_COMPONENTWISE_SCALE.0),
+        ("EXPLICIT_INCLUDES", TransformFlags::EXPLICIT_INCLUDES.0),
+        ("INCLUDE_TRANSLATION", TransformFlags::INCLUDE_TRANSLATION.0),
+        ("INCLUDE_ROTATION", TransformFlags::INCLUDE_ROTATION.0),
+        ("INCLUDE_SCALE", TransformFlags::INCLUDE_SCALE.0),
+        ("NO_EXTRAPOLATION", TransformFlags::NO_EXTRAPOLATION.0)
+    ]
+);
 
-pub use crate::{BakedAnimMetadata, CoordinateAxes, CurvePoint, Edge, Extrapolation, Face, Keyframe, LineSegment, LodLevel, MaterialFeatureInfo, Matrix, Progress, Quat, SkinVertex, SkinWeight, SubdivisionWeight, SubdivisionWeightRange, SurfacePoint, Tangent, Transform, TransformOverride, Vec2, Vec3, Vec4};
+pub use crate::{
+    BakedAnimMetadata, CoordinateAxes, CurvePoint, Edge, Extrapolation, Face, Keyframe, LineSegment, LodLevel, MaterialFeatureInfo, Matrix, Progress, Quat,
+    SkinVertex, SkinWeight, SubdivisionWeight, SubdivisionWeightRange, SurfacePoint, Tangent, Transform, TransformOverride, Vec2, Vec3, Vec4,
+};
 
 pub struct Anim {
     pub time_begin: f64,
@@ -571,12 +656,7 @@ pub struct Application {
 }
 pub(crate) fn from_Application(k: &Kx, p: &f::Application) -> Application {
     let _ = &k;
-    Application {
-        vendor: String::view((&p.vendor)),
-        name: String::view((&p.name)),
-        version: String::view((&p.version)),
-        port: Port::new(p),
-    }
+    Application { vendor: String::view((&p.vendor)), name: String::view((&p.name)), version: String::view((&p.version)), port: Port::new(p) }
 }
 
 pub struct AudioClip {
@@ -652,11 +732,7 @@ pub struct BakedElement {
 }
 pub(crate) fn from_BakedElement(k: &Kx, p: &f::BakedElement) -> BakedElement {
     let _ = &k;
-    BakedElement {
-        element_id: *(&p.element_id) as u32,
-        props: k.list((&p.props).iter().map(|x| from_BakedProp(k, x)).collect()),
-        port: Port::new(p),
-    }
+    BakedElement { element_id: *(&p.element_id) as u32, props: k.list((&p.props).iter().map(|x| from_BakedProp(k, x)).collect()), port: Port::new(p) }
 }
 
 pub struct BakedNode {
@@ -709,12 +785,7 @@ pub struct BakedQuat {
 }
 pub(crate) fn from_BakedQuat(k: &Kx, p: &f::BakedQuat) -> BakedQuat {
     let _ = &k;
-    BakedQuat {
-        time: *(&p.time),
-        value: (&p.value).clone(),
-        flags: BakedKeyFlags(*(&p.flags) as u32),
-        port: Port::new(p),
-    }
+    BakedQuat { time: *(&p.time), value: (&p.value).clone(), flags: BakedKeyFlags(*(&p.flags) as u32), port: Port::new(p) }
 }
 
 pub struct BakedVec3 {
@@ -725,12 +796,7 @@ pub struct BakedVec3 {
 }
 pub(crate) fn from_BakedVec3(k: &Kx, p: &f::BakedVec3) -> BakedVec3 {
     let _ = &k;
-    BakedVec3 {
-        time: *(&p.time),
-        value: (&p.value).clone(),
-        flags: BakedKeyFlags(*(&p.flags) as u32),
-        port: Port::new(p),
-    }
+    BakedVec3 { time: *(&p.time), value: (&p.value).clone(), flags: BakedKeyFlags(*(&p.flags) as u32), port: Port::new(p) }
 }
 
 pub struct BlendChannel {
@@ -812,13 +878,7 @@ pub struct Bone {
 }
 pub(crate) fn from_Bone(k: &Kx, p: &f::Bone) -> Bone {
     let _ = &k;
-    Bone {
-        element: from_Element(k, (&p.element)),
-        radius: *(&p.radius),
-        relative_length: *(&p.relative_length),
-        is_root: *(&p.is_root),
-        port: Port::new(p),
-    }
+    Bone { element: from_Element(k, (&p.element)), radius: *(&p.radius), relative_length: *(&p.relative_length), is_root: *(&p.is_root), port: Port::new(p) }
 }
 
 pub struct BonePose {
@@ -999,10 +1059,7 @@ pub struct CameraSwitcher {
 }
 pub(crate) fn from_CameraSwitcher(k: &Kx, p: &f::CameraSwitcher) -> CameraSwitcher {
     let _ = &k;
-    CameraSwitcher {
-        element: from_Element(k, (&p.element)),
-        port: Port::new(p),
-    }
+    CameraSwitcher { element: from_Element(k, (&p.element)), port: Port::new(p) }
 }
 
 pub struct Character {
@@ -1011,10 +1068,7 @@ pub struct Character {
 }
 pub(crate) fn from_Character(k: &Kx, p: &f::Character) -> Character {
     let _ = &k;
-    Character {
-        element: from_Element(k, (&p.element)),
-        port: Port::new(p),
-    }
+    Character { element: from_Element(k, (&p.element)), port: Port::new(p) }
 }
 
 pub struct ColorSet {
@@ -1025,12 +1079,7 @@ pub struct ColorSet {
 }
 pub(crate) fn from_ColorSet(k: &Kx, p: &f::ColorSet) -> ColorSet {
     let _ = &k;
-    ColorSet {
-        name: String::view((&p.name)),
-        index: *(&p.index) as u32,
-        vertex_color: from_VertexVec4(k, (&p.vertex_color)),
-        port: Port::new(p),
-    }
+    ColorSet { name: String::view((&p.name)), index: *(&p.index) as u32, vertex_color: from_VertexVec4(k, (&p.vertex_color)), port: Port::new(p) }
 }
 
 pub struct Connection {
@@ -1187,10 +1236,7 @@ pub struct Empty {
 }
 pub(crate) fn from_Empty(k: &Kx, p: &f::Empty) -> Empty {
     let _ = &k;
-    Empty {
-        element: from_Element(k, (&p.element)),
-        port: Port::new(p),
-    }
+    Empty { element: from_Element(k, (&p.element)), port: Port::new(p) }
 }
 
 pub struct FaceGroup {
@@ -1200,11 +1246,7 @@ pub struct FaceGroup {
 }
 pub(crate) fn from_FaceGroup(k: &Kx, p: &f::FaceGroup) -> FaceGroup {
     let _ = &k;
-    FaceGroup {
-        id: *(&p.id) as i32,
-        name: String::view((&p.name)),
-        port: Port::new(p),
-    }
+    FaceGroup { id: *(&p.id) as i32, name: String::view((&p.name)), port: Port::new(p) }
 }
 
 pub struct GeometryCache {
@@ -1310,11 +1352,7 @@ pub struct Marker {
 }
 pub(crate) fn from_Marker(k: &Kx, p: &f::Marker) -> Marker {
     let _ = &k;
-    Marker {
-        element: from_Element(k, (&p.element)),
-        type_: *(&p.marker_type),
-        port: Port::new(p),
-    }
+    Marker { element: from_Element(k, (&p.element)), type_: *(&p.marker_type), port: Port::new(p) }
 }
 
 pub struct Material {
@@ -1861,10 +1899,7 @@ pub struct MetadataObject {
 }
 pub(crate) fn from_MetadataObject(k: &Kx, p: &f::MetadataObject) -> MetadataObject {
     let _ = &k;
-    MetadataObject {
-        element: from_Element(k, (&p.element)),
-        port: Port::new(p),
-    }
+    MetadataObject { element: from_Element(k, (&p.element)), port: Port::new(p) }
 }
 
 pub struct NameElement {
@@ -2063,10 +2098,7 @@ pub struct NurbsTrimBoundary {
 }
 pub(crate) fn from_NurbsTrimBoundary(k: &Kx, p: &f::NurbsTrimBoundary) -> NurbsTrimBoundary {
     let _ = &k;
-    NurbsTrimBoundary {
-        element: from_Element(k, (&p.element)),
-        port: Port::new(p),
-    }
+    NurbsTrimBoundary { element: from_Element(k, (&p.element)), port: Port::new(p) }
 }
 
 pub struct NurbsTrimSurface {
@@ -2075,10 +2107,7 @@ pub struct NurbsTrimSurface {
 }
 pub(crate) fn from_NurbsTrimSurface(k: &Kx, p: &f::NurbsTrimSurface) -> NurbsTrimSurface {
     let _ = &k;
-    NurbsTrimSurface {
-        element: from_Element(k, (&p.element)),
-        port: Port::new(p),
-    }
+    NurbsTrimSurface { element: from_Element(k, (&p.element)), port: Port::new(p) }
 }
 
 pub struct Pose {
@@ -2103,10 +2132,7 @@ pub struct ProceduralGeometry {
 }
 pub(crate) fn from_ProceduralGeometry(k: &Kx, p: &f::ProceduralGeometry) -> ProceduralGeometry {
     let _ = &k;
-    ProceduralGeometry {
-        element: from_Element(k, (&p.element)),
-        port: Port::new(p),
-    }
+    ProceduralGeometry { element: from_Element(k, (&p.element)), port: Port::new(p) }
 }
 
 pub struct Prop {
@@ -2402,11 +2428,7 @@ pub struct ShaderPropBinding {
 }
 pub(crate) fn from_ShaderPropBinding(k: &Kx, p: &f::ShaderPropBinding) -> ShaderPropBinding {
     let _ = &k;
-    ShaderPropBinding {
-        shader_prop: String::view((&p.shader_prop)),
-        material_prop: String::view((&p.material_prop)),
-        port: Port::new(p),
-    }
+    ShaderPropBinding { shader_prop: String::view((&p.shader_prop)), material_prop: String::view((&p.material_prop)), port: Port::new(p) }
 }
 
 pub struct ShaderTexture {
@@ -2882,7 +2904,7 @@ pub(crate) fn from_Warning(k: &Kx, p: &f::Warning) -> Warning {
 
 #[derive(Default)]
 pub struct AllocatorOpts {
-    pub allocator: Allocator<>,
+    pub allocator: Allocator,
     pub memory_limit: usize,
     pub allocation_limit: usize,
     pub huge_threshold: usize,
@@ -2901,29 +2923,29 @@ impl AllocatorOpts {
 
 #[derive(Default)]
 pub struct OpenFileOpts {
-    pub allocator: AllocatorOpts<>,
+    pub allocator: AllocatorOpts,
     pub filename_null_terminated: Unsafe<bool>,
 }
 
 #[derive(Default)]
 pub struct OpenMemoryOpts<'a> {
-    pub allocator: AllocatorOpts<>,
+    pub allocator: AllocatorOpts,
     pub no_copy: Unsafe<bool>,
     pub close_cb: CloseMemoryCb<'a>,
 }
 
 #[derive(Default)]
 pub struct ThreadOpts {
-    pub pool: ThreadPool<>,
+    pub pool: ThreadPool,
     pub num_tasks: usize,
     pub memory_limit: usize,
 }
 
 #[derive(Default)]
 pub struct LoadOpts<'a> {
-    pub temp_allocator: AllocatorOpts<>,
-    pub result_allocator: AllocatorOpts<>,
-    pub thread_opts: ThreadOpts<>,
+    pub temp_allocator: AllocatorOpts,
+    pub result_allocator: AllocatorOpts,
+    pub thread_opts: ThreadOpts,
     pub ignore_geometry: bool,
     pub ignore_animation: bool,
     pub ignore_embedded: bool,
@@ -3068,8 +3090,8 @@ impl<'a> LoadOpts<'a> {
 
 #[derive(Default)]
 pub struct EvaluateOpts<'a> {
-    pub temp_allocator: AllocatorOpts<>,
-    pub result_allocator: AllocatorOpts<>,
+    pub temp_allocator: AllocatorOpts,
+    pub result_allocator: AllocatorOpts,
     pub evaluate_skinning: bool,
     pub evaluate_caches: bool,
     pub evaluate_flags: u32,
@@ -3115,7 +3137,7 @@ pub struct AnimOpts<'a> {
     pub prop_overrides: ListOpt<'a, PropOverrideDesc<'a>>,
     pub transform_overrides: ListOpt<'a, TransformOverride>,
     pub ignore_connections: bool,
-    pub result_allocator: AllocatorOpts<>,
+    pub result_allocator: AllocatorOpts,
 }
 impl<'a> AnimOpts<'a> {
     pub(crate) fn to_port(&mut self) -> f::AnimOpts {
@@ -3131,8 +3153,8 @@ impl<'a> AnimOpts<'a> {
 
 #[derive(Default)]
 pub struct BakeOpts {
-    pub temp_allocator: AllocatorOpts<>,
-    pub result_allocator: AllocatorOpts<>,
+    pub temp_allocator: AllocatorOpts,
+    pub result_allocator: AllocatorOpts,
     pub trim_start_time: bool,
     pub resample_rate: f64,
     pub minimum_sample_rate: f64,
@@ -3177,8 +3199,8 @@ impl BakeOpts {
 
 #[derive(Default)]
 pub struct TessellateCurveOpts {
-    pub temp_allocator: AllocatorOpts<>,
-    pub result_allocator: AllocatorOpts<>,
+    pub temp_allocator: AllocatorOpts,
+    pub result_allocator: AllocatorOpts,
     pub span_subdivision: usize,
 }
 impl TessellateCurveOpts {
@@ -3191,8 +3213,8 @@ impl TessellateCurveOpts {
 
 #[derive(Default)]
 pub struct TessellateSurfaceOpts {
-    pub temp_allocator: AllocatorOpts<>,
-    pub result_allocator: AllocatorOpts<>,
+    pub temp_allocator: AllocatorOpts,
+    pub result_allocator: AllocatorOpts,
     pub span_subdivision_u: usize,
     pub span_subdivision_v: usize,
     pub skip_mesh_parts: bool,
@@ -3209,8 +3231,8 @@ impl TessellateSurfaceOpts {
 
 #[derive(Default)]
 pub struct SubdivideOpts {
-    pub temp_allocator: AllocatorOpts<>,
-    pub result_allocator: AllocatorOpts<>,
+    pub temp_allocator: AllocatorOpts,
+    pub result_allocator: AllocatorOpts,
     pub boundary: SubdivisionBoundary,
     pub uv_boundary: SubdivisionBoundary,
     pub ignore_normals: bool,
@@ -3241,8 +3263,8 @@ impl SubdivideOpts {
 
 #[derive(Default)]
 pub struct GeometryCacheOpts<'a> {
-    pub temp_allocator: AllocatorOpts<>,
-    pub result_allocator: AllocatorOpts<>,
+    pub temp_allocator: AllocatorOpts,
+    pub result_allocator: AllocatorOpts,
     pub open_file_cb: OpenFileCb<'a>,
     pub frames_per_second: f64,
     pub mirror_axis: MirrorAxis,
@@ -3871,4 +3893,3 @@ impl Element {
         }
     }
 }
-

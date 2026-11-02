@@ -24,6 +24,7 @@ impl<'a> TopChildren<'a> {
 }
 
 impl<'a> Context<'a> {
+    #[allow(clippy::wrong_self_convention)] // ufbx's flag `from_ascii`
     pub fn from_ascii(&self) -> bool {
         self.p.from_ascii
     }
@@ -270,10 +271,10 @@ pub(crate) fn as_u32(v: &[i32]) -> Vec<u32> {
     v.iter().map(|&x| x as u32).collect()
 }
 pub(crate) fn vec3s(v: &[f64]) -> Vec<Vec3> {
-    v.chunks_exact(3).map(|c| Vec3::new(c[0], c[1], c[2])).collect()
+    v.as_chunks::<3>().0.iter().map(|c| Vec3::new(c[0], c[1], c[2])).collect()
 }
 pub(crate) fn vec4s(v: &[f64]) -> Vec<Vec4> {
-    v.chunks_exact(4).map(|c| Vec4::new(c[0], c[1], c[2], c[3])).collect()
+    v.as_chunks::<4>().0.iter().map(|c| Vec4::new(c[0], c[1], c[2], c[3])).collect()
 }
 
 /// 16 values of a column-major 4x4, the last row dropped
@@ -541,9 +542,9 @@ impl<'a> Context<'a> {
             (Exporter::FbxSdk, pack_version(v[0], v[1], 0))
         } else if match_version_string("fbx sdk/fbx plugins build ?", &creator, &mut v) {
             (Exporter::FbxSdk, pack_version(v[0] / 10000, v[0] / 100 % 100, v[0] % 100))
-        } else if match_version_string("motionbuilder version ?.?", &creator, &mut v) {
-            (Exporter::MotionBuilder, pack_version(v[0], v[1], 0))
-        } else if match_version_string("motionbuilder/mocap/online version ?.?", &creator, &mut v) {
+        } else if match_version_string("motionbuilder version ?.?", &creator, &mut v)
+            || match_version_string("motionbuilder/mocap/online version ?.?", &creator, &mut v)
+        {
             (Exporter::MotionBuilder, pack_version(v[0], v[1], 0))
         } else if match_version_string("ufbx_write", &creator, &mut v) {
             (Exporter::UfbxWrite, pack_version(0, 0, 1))
@@ -1385,8 +1386,8 @@ impl<'a> Context<'a> {
         let f = node.find_child("Form");
         let (Some(form_u), Some(form_v)) = (f.and_then(|n| n.str_at(0)), f.and_then(|n| n.str_at(1))) else { return fail() };
         let flip = node.find_child("FlipNormals").and_then(|n| n.bool_at(0)).unwrap_or(false);
-        if dim_u > 0 {
-            check!(dim_v <= u32::MAX as usize / dim_u);
+        if let Some(most) = (u32::MAX as usize).checked_div(dim_u) {
+            check!(dim_v <= most);
         }
         let (tu, tv) = (read_nurbs_topology(form_u), read_nurbs_topology(form_v));
         let mut control_points = Vec::new();
@@ -1580,9 +1581,11 @@ impl<'a> Context<'a> {
             let range_right = weight_right as f64 * (next_time - time);
             let mut max_left = if range_left > 0.0 { sign * (value - prev_value) / range_left } else { 0.0 };
             let mut max_right = if range_right > 0.0 { sign * (next_value - value) / range_right } else { 0.0 };
+            #[allow(clippy::neg_cmp_op_on_partial_ord)] // NaN fails both, as in C
             if !(max_left > 0.0) {
                 max_left = 0.0;
             }
+            #[allow(clippy::neg_cmp_op_on_partial_ord)] // NaN fails both, as in C
             if !(max_right > 0.0) {
                 max_right = 0.0;
             }

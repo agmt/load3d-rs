@@ -344,6 +344,7 @@ fn triangulate_ngon(nc: &mut NgonContext, buf: &mut [u32]) -> u32 {
             let mut clipped = false;
             for side_ix in 0..2 {
                 let side = side_ix ^ first_side;
+                #[allow(clippy::neg_cmp_op_on_partial_ord)] // NaN fails both, as in C
                 if !(weights[side] >= 0.0) {
                     break;
                 }

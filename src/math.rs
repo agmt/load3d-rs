@@ -475,7 +475,9 @@ pub fn quat_slerp(a: Quat, mut b: Quat, t: Real) -> Quat {
         b.w = -b.w;
     }
     // fmax/fmin, which take a NaN to 0 as `clamp` would not
+    #[allow(clippy::manual_clamp)]
     let omega = dot.max(0.0).min(1.0).acos();
+    #[allow(clippy::excessive_precision)] // C's FLT_MIN as ufbx writes it
     if omega <= 1.175494351e-38f32 as f64 {
         return a;
     }

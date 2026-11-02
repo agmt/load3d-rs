@@ -13,7 +13,7 @@ pub(crate) fn input_index(shader: &ShaderTexture, name: &str) -> Option<usize> {
 }
 
 /// `ufbxi_remove_suffix_c` and `ufbxi_remove_suffix_len` in ufbx.c
-fn remove_suffix<'a>(s: &mut &'a str, suffix: &str) -> bool {
+fn remove_suffix(s: &mut &str, suffix: &str) -> bool {
     match s.strip_suffix(suffix) {
         Some(t) => {
             *s = t;
@@ -308,13 +308,13 @@ impl Context<'_> {
         let mut file: Option<(String, Vec<u8>)> = None;
         if !disable_quirks {
             for (id, name, input_name) in FILE_SHADERS {
-                if (id != 0 && shader.shader_type_id == id) || shader.shader_name == name {
-                    if let Some(input) = input_index(&shader, input_name) {
-                        if let Some(p) = props.find(&shader.inputs[input].prop) {
-                            file = Some((p.value_str.clone(), p.value_blob.clone()));
-                        }
-                        break;
+                if ((id != 0 && shader.shader_type_id == id) || shader.shader_name == name)
+                    && let Some(input) = input_index(&shader, input_name)
+                {
+                    if let Some(p) = props.find(&shader.inputs[input].prop) {
+                        file = Some((p.value_str.clone(), p.value_blob.clone()));
                     }
+                    break;
                 }
             }
         }

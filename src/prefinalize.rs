@@ -91,7 +91,8 @@ impl<'a> Context<'a> {
         }
 
         let resolve = |ctx: &Context, id: u64| ctx.find_fbx_id(id).map(|e| e.element_id as usize);
-        let conns: Vec<(Option<usize>, Option<usize>, bool, bool, String)> = self
+        type Conn = (Option<usize>, Option<usize>, bool, bool, String);
+        let conns: Vec<Conn> = self
             .tmp_connections
             .iter()
             .map(|c| (resolve(self, c.src), resolve(self, c.dst), c.src_prop.is_empty(), c.dst_prop.is_empty(), c.dst_prop.clone()))

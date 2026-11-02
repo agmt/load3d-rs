@@ -1407,4 +1407,3 @@ const _: for<'a> fn(&'a Scene, &str) -> Option<&'a Node> = Scene::find_node;
 const _: for<'a> fn(&'a Scene, &str) -> Option<&'a AnimStack> = Scene::find_anim_stack;
 const _: fn(&Scene, &Anim, f64, EvaluateOpts) -> Result<SceneRoot> = Scene::evaluate;
 const _: fn(&Element) -> ElementData<'_> = Element::as_data;
-

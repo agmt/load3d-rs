@@ -40,7 +40,7 @@ pub fn flatten(scene: &Scene) -> Vec<FlatMesh> {
     flatten_with(scene, |mesh, face| {
         let mut corners = vec![0; 3 * (face.num_indices as usize).saturating_sub(2)];
         let n = triangulate_face(&mut corners, mesh, face) as usize;
-        corners[..3 * n].chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect()
+        corners[..3 * n].as_chunks::<3>().0.iter().map(|c| [c[0], c[1], c[2]]).collect()
     })
 }
 
@@ -109,7 +109,7 @@ impl SceneSettings {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Element, Node, NO_INDEX};
+    use crate::{Element, NO_INDEX, Node};
 
     #[cfg(feature = "format-fbx")]
     fn fbx(settings: &str, objects: &str, connections: &str) -> crate::Scene {
@@ -159,7 +159,11 @@ mod tests {
     #[test]
     #[cfg(feature = "format-fbx")]
     fn a_mesh_comes_once_for_each_node_where_that_node_puts_it() {
-        let objects = [TRIANGLE.to_string(), model(2, "left", "P: \"Lcl Translation\", \"Lcl Translation\", \"\", \"A\", -10,0,0"), model(3, "right", "P: \"Lcl Translation\", \"Lcl Translation\", \"\", \"A\", 10,0,0")];
+        let objects = [
+            TRIANGLE.to_string(),
+            model(2, "left", "P: \"Lcl Translation\", \"Lcl Translation\", \"\", \"A\", -10,0,0"),
+            model(3, "right", "P: \"Lcl Translation\", \"Lcl Translation\", \"\", \"A\", 10,0,0"),
+        ];
         let scene = fbx("", &objects.join("\n"), "    C: \"OO\",1,2\n    C: \"OO\",1,3\n    C: \"OO\",2,0\n    C: \"OO\",3,0");
         let flat = flatten(&scene);
         let at: Vec<(&str, f64)> = flat.iter().map(|f| (scene.nodes[f.node].element.name.as_str(), f.positions[0].x)).collect();
@@ -194,14 +198,24 @@ mod tests {
 
     #[test]
     fn a_corner_left_empty_stays_empty() {
-        let scene = Scene { nodes: vec![placed_as_it_is()], meshes: vec![mesh(&[Face { index_begin: 0, num_indices: 3 }], &[0, NO_INDEX, 2], &[], &[0])], ..Scene::default() };
+        let scene = Scene {
+            nodes: vec![placed_as_it_is()],
+            meshes: vec![mesh(&[Face { index_begin: 0, num_indices: 3 }], &[0, NO_INDEX, 2], &[], &[0])],
+            ..Scene::default()
+        };
         assert_eq!(flatten(&scene)[0].triangles, [[0, NO_INDEX, 2]]);
     }
 
     #[test]
     fn a_program_may_cut_a_face_its_own_way() {
-        let scene = Scene { nodes: vec![placed_as_it_is()], meshes: vec![mesh(&[Face { index_begin: 0, num_indices: 4 }], &[0, 1, 2, 3], &[], &[0])], ..Scene::default() };
-        let flat = flatten_with(&scene, |_, face| vec![[face.index_begin + 1, face.index_begin + 2, face.index_begin + 3], [face.index_begin + 1, face.index_begin + 3, face.index_begin]]);
+        let scene = Scene {
+            nodes: vec![placed_as_it_is()],
+            meshes: vec![mesh(&[Face { index_begin: 0, num_indices: 4 }], &[0, 1, 2, 3], &[], &[0])],
+            ..Scene::default()
+        };
+        let flat = flatten_with(&scene, |_, face| {
+            vec![[face.index_begin + 1, face.index_begin + 2, face.index_begin + 3], [face.index_begin + 1, face.index_begin + 3, face.index_begin]]
+        });
         assert_eq!(flat[0].triangles, [[1, 2, 3], [1, 3, 0]]);
         assert_eq!(flat[0].faces, [0, 0]);
     }
@@ -244,7 +258,9 @@ mod tests {
         assert_eq!(scene.settings.stated_unit(), Some(1.0));
         let unstated = fbx("", &model(2, "empty", ""), "    C: \"OO\",2,0");
         assert_eq!(unstated.settings.stated_unit(), None);
-        let text = format!("; FBX 7.4.0 project file\nFBXHeaderExtension:  {{\n    FBXVersion: 7400\n}}\nGlobalSettings:  {{\n    Properties70:  {{\n{stated}\n    }}\n}}\n");
+        let text = format!(
+            "; FBX 7.4.0 project file\nFBXHeaderExtension:  {{\n    FBXVersion: 7400\n}}\nGlobalSettings:  {{\n    Properties70:  {{\n{stated}\n    }}\n}}\n"
+        );
         let turned = crate::load_memory(text.as_bytes(), &crate::LoadOpts { target_unit_meters: 0.001, ..crate::LoadOpts::default() }).unwrap();
         assert_eq!(turned.settings.stated_unit(), Some(1.0));
     }

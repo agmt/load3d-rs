@@ -242,7 +242,7 @@ pub(crate) fn utf8_valid_length(s: &[u8]) -> usize {
             }
         } else if c & 0xf0 == 0xe0 && left >= 3 {
             let code = (c as u32) << 16 | (s[index + 1] as u32) << 8 | s[index + 2] as u32;
-            if code & 0xc0c0 == 0x8080 && code >= 0xe0a080 && (code < 0xeda080 || code >= 0xee8080) {
+            if code & 0xc0c0 == 0x8080 && code >= 0xe0a080 && !(0xeda080..0xee8080).contains(&code) {
                 index += 3;
                 continue;
             }

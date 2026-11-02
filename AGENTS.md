@@ -15,4 +15,6 @@ and how a function ported from ufbx is named; `TESTING.md`, how the crate is che
   left goes there, not into a file of the repository.
 - **Comments** say only what the code cannot: a non-obvious constraint, a quirk of a format or of ufbx, a choice that
   looks wrong until explained; one or two lines where they apply. The C names a port carries are `PORTING.md`'s.
+- **A lint the port means to break**, as `!(a < b)` kept for C's NaN, is allowed where it is, with the reason beside
+  it.
 - **Before a push:** `./test.sh` passes on every new commit, then `./test-all.sh` on the last.

@@ -102,7 +102,10 @@ macro_rules! impl_element_access {
 
         pub(crate) fn push_typed(scene: &mut Scene, t: ElementType, element: Element) -> usize {
             match t {
-                $(ElementType::$variant => {
+                $(
+                // a type holding nothing but `element` among them
+                #[allow(clippy::needless_update)]
+                ElementType::$variant => {
                     scene.$field.push($ty { element, ..Default::default() });
                     scene.$field.len() - 1
                 })*

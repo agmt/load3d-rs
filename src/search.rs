@@ -140,7 +140,7 @@ pub(crate) fn unstable_sort<T>(data: &mut [T], less: impl Fn(&T, &T) -> bool) {
                 break;
             }
             let mut next = if less(&data[child], &data[root]) { root } else { child };
-            if child + 1 <= end && less(&data[next], &data[child + 1]) {
+            if child < end && less(&data[next], &data[child + 1]) {
                 next = child + 1;
             }
             if next == root {

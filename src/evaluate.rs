@@ -96,6 +96,7 @@ fn extrapolate_curve(curve: &AnimCurve, real_time: f64, flags: u32) -> Real {
     let delta = if pre { min_time - time } else { time - max_time };
     let duration = max_time - min_time;
 
+    #[allow(clippy::neg_cmp_op_on_partial_ord)] // NaN fails both, as in C
     if !(duration >= 1.0) {
         return key.value;
     }

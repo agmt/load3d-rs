@@ -53,6 +53,8 @@ fn huff_sym_value(sym: u16) -> u32 {
     sym as u32 >> 8
 }
 
+type ReadFn<'a> = dyn FnMut(&mut [u8]) -> usize + 'a;
+
 #[derive(Default)]
 pub struct InflateInput<'a> {
     /// Bytes of compressed input in all, from `data` and then from `read_fn`
@@ -61,7 +63,7 @@ pub struct InflateInput<'a> {
     /// The size of the buffer `read_fn` reads into, at least ufbx's 256 bytes
     pub buffer_size: usize,
     /// Fills the slice from the start, returning the bytes read: 0 at the end, more than asked (`usize::MAX`) for an error
-    pub read_fn: Option<&'a mut dyn FnMut(&mut [u8]) -> usize>,
+    pub read_fn: Option<&'a mut ReadFn<'a>>,
     /// `ProgressFn`, but free to borrow
     pub progress_cb: Option<&'a (dyn Fn(&Progress) -> ProgressResult + Send + Sync + 'a)>,
     pub progress_interval_hint: u64,
@@ -128,7 +130,7 @@ enum Chunk {
 /// The chunk pointers are offsets into `data` or `buffer`, both of which begin the chunk
 struct BitStream<'s> {
     input_left: usize,
-    read_fn: Option<&'s mut dyn FnMut(&mut [u8]) -> usize>,
+    read_fn: Option<&'s mut ReadFn<'s>>,
     data: &'s [u8],
     buffer: Vec<u8>,
     buffer_size: usize,

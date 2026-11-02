@@ -1124,6 +1124,7 @@ pub(crate) fn round_if_near(targets: &[Real], value: Real) -> Real {
         if error < 0.0 {
             error = -error;
         }
+        #[allow(clippy::excessive_precision)] // ufbx's constant as written
         if error < 7.52316384526264005e-37 {
             error = 7.52316384526264005e-37;
         }

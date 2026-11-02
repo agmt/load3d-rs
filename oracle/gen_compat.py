@@ -8,6 +8,7 @@ are ufbx-rust's fields with a converter from the port's value."""
 import argparse
 import os
 import re
+import subprocess
 import sys
 
 sys.dont_write_bytecode = True
@@ -535,6 +536,13 @@ def split_args(s):
     return out
 
 
+def formatted(body, root):
+    # as `cargo fmt` lays out the crate, so that test.sh's `cargo fmt --check` holds for these files too
+    run = subprocess.run(['rustfmt', '--edition', '2024', '--config-path', os.path.join(root, 'rustfmt.toml'), '--emit', 'stdout'],
+                         input=body, capture_output=True, text=True, check=True)
+    return run.stdout
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     ap = argparse.ArgumentParser()
@@ -562,8 +570,9 @@ def main():
             'use super::*;', 'use crate as f;', '']
     out = head + g.enums() + g.flags() + g.structs() + opts + g.arenas()
     api, n = g.api_check()
-    files = {os.path.join(args.src, 'compat/generated.rs'): '\n'.join(out) + '\n',
-             os.path.join(args.src, 'compat/api_check.rs'): '\n'.join(api) + '\n'}
+    root = os.path.dirname(os.path.abspath(args.src))
+    files = {os.path.join(args.src, 'compat/generated.rs'): formatted('\n'.join(out) + '\n', root),
+             os.path.join(args.src, 'compat/api_check.rs'): formatted('\n'.join(api) + '\n', root)}
     if args.report:
         print(f'{len(g.planned)} structs, of which the port\'s own: {sorted(x for x in g.planned if g.plain(x))}')
         print(f'enums generated: {sorted(x for x in c.enums if not g.enum_reused(x))}')

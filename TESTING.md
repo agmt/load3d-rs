@@ -22,11 +22,11 @@ The browser build needs its target, once:
 
     rustup target add wasm32-unknown-unknown
 
-`test.sh` runs the tests with every feature on and with none, and builds each format alone and for the
-browser's `wasm32-unknown-unknown`. CI (`.github/workflows/ci.yml`, GitHub Actions) runs it and the viewer's
-`test.sh` below, and leaves the oracle to be run by hand: ufbx's C allocates what a damaged file declares, and on a
-machine that refuses it, as GitHub's runners do, C answers "Out of memory" where this crate reports the file's own
-error, which the comparison counts as a failure. `vm.overcommit_memory=1` lets it pass.
+`test.sh` checks the layout (`cargo fmt`) and Clippy's lints, runs the tests with every feature on and with none, and
+builds each format alone and for the browser's `wasm32-unknown-unknown`. CI (`.github/workflows/ci.yml`, GitHub Actions)
+runs it and the viewer's `test.sh` below, and leaves the oracle to be run by hand: ufbx's C allocates what a damaged
+file declares, and on a machine that refuses it, as GitHub's runners do, C answers "Out of memory" where this crate
+reports the file's own error, which the comparison counts as a failure. `vm.overcommit_memory=1` lets it pass.
 
 This repository holds no 3D file. The checks above take ufbx's from its public repository, cloned beside this one as
 `../ufbx`. `cargo test` needs no clone: the crate's tests write their files in code, and the three that read ufbx's are

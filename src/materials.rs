@@ -37,6 +37,7 @@ fn mat_transform(transform: u8, v: &mut Vec4) {
             if v.x >= 0.0 {
                 v.x = 1.0 - v.x.sqrt() * 0.1;
             }
+            #[allow(clippy::neg_cmp_op_on_partial_ord)] // NaN fails both, as in C
             if !(v.x >= 0.0) {
                 v.x = 0.0;
             }

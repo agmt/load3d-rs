@@ -1657,7 +1657,7 @@ fn finalize_nurbs_basis(basis: &mut NurbsBasis) -> Res<()> {
     if basis.order > 1 {
         let degree = basis.order as usize - 1;
         let knots = &basis.knot_vector;
-        if knots.len() >= 2 * degree + 1 {
+        if knots.len() > 2 * degree {
             basis.t_min = knots[degree];
             basis.t_max = knots[knots.len() - degree - 1];
             let max_spans = knots.len() - 2 * degree;
@@ -1671,7 +1671,9 @@ fn finalize_nurbs_basis(basis: &mut NurbsBasis) -> Res<()> {
                 }
             }
             basis.spans = spans;
-            basis.valid = (1..knots.len()).all(|i| !(knots[i - 1] > knots[i]));
+            #[allow(clippy::neg_cmp_op_on_partial_ord)] // NaN fails both, as in C
+            let ordered = (1..knots.len()).all(|i| !(knots[i - 1] > knots[i]));
+            basis.valid = ordered;
         }
     }
     Ok(())

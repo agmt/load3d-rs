@@ -182,13 +182,10 @@ fn edge_crease(mesh: &Mesh, split: bool, topo: &[TopoEdge], index: u32) -> Real 
     edge_crease_value(mesh, te.edge).unwrap_or(0.0)
 }
 
+type SumFn<'a, T> = dyn FnMut(&[(&T, Real)]) -> Res<T> + 'a;
+
 /// The new values are the face points, then the edge points, then the vertex points
-fn subdivide_layer<T: Clone + Default>(
-    mesh: &Mesh,
-    topo: &[TopoEdge],
-    input: &LayerInput<T>,
-    sum: &mut dyn FnMut(&[(&T, Real)]) -> Res<T>,
-) -> Res<LayerOutput<T>> {
+fn subdivide_layer<T: Clone + Default>(mesh: &Mesh, topo: &[TopoEdge], input: &LayerInput<T>, sum: &mut SumFn<'_, T>) -> Res<LayerOutput<T>> {
     let num_indices = mesh.num_indices;
 
     let mut edge_indices = vec![0u32; num_indices];

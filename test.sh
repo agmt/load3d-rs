@@ -2,6 +2,9 @@
 set -eux
 cd "$(dirname "$0")"
 
+cargo fmt --check
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo clippy --locked --all-targets --no-default-features -- -D warnings
 cargo test --locked --features flatten
 cargo test --locked --no-default-features
 cargo test --locked --features ufbx-compat --lib

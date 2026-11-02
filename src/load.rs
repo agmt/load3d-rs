@@ -362,10 +362,11 @@ impl<'a> Context<'a> {
     fn resolve_warning_elements(&mut self) {
         for w in &mut self.scene.metadata.warnings {
             let id = w.element_id;
-            if id & 0x8000_0000 != 0 && id != u32::MAX {
-                if let Some(&e) = self.tmp_element_id.get((id & !0x8000_0000) as usize) {
-                    w.element_id = e;
-                }
+            if id & 0x8000_0000 != 0
+                && id != u32::MAX
+                && let Some(&e) = self.tmp_element_id.get((id & !0x8000_0000) as usize)
+            {
+                w.element_id = e;
             }
         }
     }

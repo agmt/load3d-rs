@@ -2,7 +2,10 @@
 //!
 //! The only module with `unsafe`: pointers into what a `SceneRoot` owns, callbacks that borrow, and the C function pointers
 //! and `FILE *` that ufbx-rust's API names.
+// ufbx-rust's signatures, its `Error` returned by value
+#![allow(clippy::result_large_err)]
 
+use std::alloc::Layout;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -13,7 +16,6 @@ use std::io::{self, Read, Seek, SeekFrom};
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref, Index};
-use std::alloc::Layout;
 use std::panic::{self, AssertUnwindSafe};
 use std::sync::{Arc, Weak};
 use std::{ptr, slice};
@@ -417,12 +419,13 @@ pub enum ListOpt<'a, T> {
     Owned(Vec<T>),
 }
 
+// no bound on `T`, as ufbx-rust's
+#[allow(clippy::derivable_impls)]
 impl<T> Default for ListOpt<'_, T> {
     fn default() -> Self {
         ListOpt::Unset
     }
 }
-
 impl<'a, T> From<&'a [T]> for ListOpt<'a, T> {
     fn from(v: &'a [T]) -> Self {
         ListOpt::Ref(v)
@@ -447,13 +450,7 @@ impl<T> ListOpt<'_, T> {
 }
 
 pub(crate) fn prop_override_to_port(p: &PropOverrideDesc) -> f::PropOverrideDesc {
-    f::PropOverrideDesc {
-        element_id: p.element_id,
-        prop_name: p.prop_name.to_port(),
-        value: p.value,
-        value_str: p.value_str.to_port(),
-        value_int: p.value_int,
-    }
+    f::PropOverrideDesc { element_id: p.element_id, prop_name: p.prop_name.to_port(), value: p.value, value_str: p.value_str.to_port(), value_int: p.value_int }
 }
 
 pub trait AllocatorInterface {
@@ -572,6 +569,7 @@ type ProgressRef<'a> = dyn Fn(&Progress) -> ProgressResult + 'a;
 
 impl ProgressCb<'_> {
     /// The callback lives as long as the call of ufbx's that takes it, and this crate calls it within that call alone
+    #[allow(clippy::wrong_self_convention)] // named as the converters gen_compat.py writes
     pub(crate) fn to_port(&mut self) -> Option<Arc<f::ProgressFn>> {
         match self {
             ProgressCb::Unset => None,
@@ -673,6 +671,7 @@ fn open_result(stream: Option<Stream>) -> Option<Vec<u8>> {
 }
 
 impl OpenFileCb<'_> {
+    #[allow(clippy::wrong_self_convention)] // named as the converters gen_compat.py writes
     pub(crate) fn to_port(&mut self) -> Option<Arc<f::OpenFileFn>> {
         match self {
             OpenFileCb::Unset => None,
@@ -833,14 +832,7 @@ pub struct Error {
 
 pub(crate) fn to_error(e: f::Error) -> Error {
     let held: Box<str> = e.description.into_boxed_str();
-    Error {
-        type_: e.kind,
-        description: String::view(&held),
-        stack_size: 0,
-        stack: Default::default(),
-        held,
-        info: e.info,
-    }
+    Error { type_: e.kind, description: String::view(&held), stack_size: 0, stack: Default::default(), held, info: e.info }
 }
 
 impl Error {
@@ -1324,14 +1316,14 @@ pub fn axes_left_handed_y_up() -> CoordinateAxes {
 pub fn axes_left_handed_z_up() -> CoordinateAxes {
     CoordinateAxes::LEFT_HANDED_Z_UP
 }
+#[allow(clippy::identity_op)] // ufbx-rust's packing, the major version at bit 24
 pub fn source_version() -> u32 {
     (0 << 24) | (23 << 12) | 1
 }
 
 pub use crate::{
-    coordinate_axes_valid, euler_to_quat, matrix_determinant, matrix_for_normals, matrix_invert, matrix_mul, matrix_to_transform,
-    quat_dot, quat_fix_antipodal, quat_mul, quat_normalize, quat_rotate_vec3, quat_slerp, quat_to_euler, transform_direction,
-    transform_position, transform_to_matrix, vec3_normalize,
+    coordinate_axes_valid, euler_to_quat, matrix_determinant, matrix_for_normals, matrix_invert, matrix_mul, matrix_to_transform, quat_dot, quat_fix_antipodal,
+    quat_mul, quat_normalize, quat_rotate_vec3, quat_slerp, quat_to_euler, transform_direction, transform_position, transform_to_matrix, vec3_normalize,
 };
 
 pub fn triangulate_face_vec(indices: &mut Vec<u32>, mesh: &Mesh, face: Face) -> u32 {
@@ -1817,9 +1809,7 @@ pub fn triangulate_face(indices: &mut [u32], mesh: &Mesh, face: Face) -> u32 {
 }
 
 fn topo_to_port(topo: &[TopoEdge]) -> Vec<f::TopoEdge> {
-    topo.iter()
-        .map(|t| f::TopoEdge { index: t.index, next: t.next, prev: t.prev, twin: t.twin, face: t.face, edge: t.edge, flags: t.flags.0 })
-        .collect()
+    topo.iter().map(|t| f::TopoEdge { index: t.index, next: t.next, prev: t.prev, twin: t.twin, face: t.face, edge: t.edge, flags: t.flags.0 }).collect()
 }
 
 pub fn compute_topology(mesh: &Mesh, topo: &mut [TopoEdge]) {
@@ -1950,22 +1940,22 @@ impl DomNode {
     pub fn array_size(&self) -> usize {
         dom_array_size(self)
     }
-    pub fn as_int32_list<'a>(&'a self) -> &'a [i32] {
+    pub fn as_int32_list(&self) -> &[i32] {
         dom_as_int32_list(self)
     }
-    pub fn as_int64_list<'a>(&'a self) -> &'a [i64] {
+    pub fn as_int64_list(&self) -> &[i64] {
         dom_as_int64_list(self)
     }
-    pub fn as_float_list<'a>(&'a self) -> &'a [f32] {
+    pub fn as_float_list(&self) -> &[f32] {
         dom_as_float_list(self)
     }
-    pub fn as_double_list<'a>(&'a self) -> &'a [f64] {
+    pub fn as_double_list(&self) -> &[f64] {
         dom_as_double_list(self)
     }
-    pub fn as_real_list<'a>(&'a self) -> &'a [Real] {
+    pub fn as_real_list(&self) -> &[Real] {
         dom_as_real_list(self)
     }
-    pub fn as_blob_list<'a>(&'a self) -> &'a [Blob] {
+    pub fn as_blob_list(&self) -> &[Blob] {
         dom_as_blob_list(self)
     }
 }
@@ -1974,7 +1964,7 @@ impl<'a> f::VertexStream<'a> {
     pub fn new<T: Copy + Sized>(data: &'a mut [T]) -> f::VertexStream<'a> {
         let vertex_count = data.len();
         let vertex_size = std::mem::size_of::<T>();
-        let bytes = unsafe { slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, vertex_count * vertex_size) };
+        let bytes = unsafe { slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, std::mem::size_of_val(data)) };
         f::VertexStream { data: bytes, vertex_count, vertex_size }
     }
 }
