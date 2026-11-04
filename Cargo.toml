@@ -2,6 +2,7 @@
 name = "load3d"
 version = "0.1.4"
 edition = "2024"
+rust-version = "1.88.0"
 license = "MIT"
 description = "3D files read in pure Rust, each format a feature: FBX (binary and text, 3.0 to 7.7), OBJ and MTL as ufbx 0.23.1 reads them, ported whole, with animation, skinning, NURBS, triangulation and subdivision, and 3D Studio .3ds files besides"
 repository = "https://github.com/agmt/load3d-rs"
